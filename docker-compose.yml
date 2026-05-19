@@ -1,0 +1,10 @@
+services:
+  clientes:
+    build: ./clientes
+    ports:
+      - "5000:5000"
+
+  tracking:
+    build: ./tracking
+    ports:
+      - "5001:5001"

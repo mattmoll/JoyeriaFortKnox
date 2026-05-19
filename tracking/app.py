@@ -149,5 +149,39 @@ def tracking():
                            error=error, shipment_id=shipment_id)
 
 
+# ---------------------------------------------------------------------------
+# Busqueda interna de soporte por user_id
+# VULNERABILIDAD A05: el parametro user_id se concatena directamente en la query.
+# Payload:
+#   1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
+# Efecto: aparece una segunda fila con el username en la columna "Nombre".
+# ---------------------------------------------------------------------------
+
+@app.route('/support/search')
+@sso_required
+def support_search():
+    user_id = request.args.get('user_id', '').strip()
+    results = []
+    error = None
+    searched = bool(user_id)
+
+    if user_id:
+        conn = get_db()
+        try:
+            # BUG A05: concatenacion directa de string — sin consultas parametrizadas.
+            query = (
+                f"SELECT u.id, u.first_name, u.last_name, u.email "
+                f"FROM users u WHERE u.id = {user_id}"
+            )
+            results = conn.execute(query).fetchall()
+        except Exception as e:
+            error = str(e)
+        finally:
+            conn.close()
+
+    return render_template('support.html', results=results,
+                           user_id=user_id, error=error, searched=searched)
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5001, host=os.environ.get('FLASK_HOST', '127.0.0.1'))

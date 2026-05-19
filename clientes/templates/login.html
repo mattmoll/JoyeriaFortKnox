@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesión — Fort Knox Joyas{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center"
+     style="background: linear-gradient(135deg, #0d1b2a, #1b4f8a); margin-top: -1px;">
+  <div style="width: 100%; max-width: 420px; padding: 1rem;">
+
+    <div class="card p-4 p-md-5">
+      <div class="text-center mb-4">
+        <div class="fw-bold fs-5" style="color: var(--fk-dark); letter-spacing: 1px;">
+          FORT KNOX <span style="color: var(--fk-blue);">JOYAS</span>
+        </div>
+        <div class="text-muted" style="font-size: .78rem; letter-spacing: 2px;">PORTAL DE CLIENTES</div>
+        <hr class="my-3" />
+      </div>
+
+      {% if error %}
+      <div class="alert py-2 mb-3 d-flex align-items-center gap-2"
+           style="background: #fee2e2; border: 1px solid #f87171; color: #991b1b; font-size: .82rem;">
+        <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <div class="mb-3">
+          <label class="form-label text-muted" style="font-size: .82rem; font-weight: 600;">
+            USUARIO
+          </label>
+          <input type="text" name="username" class="form-control"
+                 placeholder="tu_usuario" autofocus required />
+        </div>
+        <div class="mb-4">
+          <label class="form-label text-muted" style="font-size: .82rem; font-weight: 600;">
+            CONTRASEÑA
+          </label>
+          <input type="password" name="password" class="form-control"
+                 placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn w-100 fw-semibold text-white"
+                style="background-color: var(--fk-blue);">
+          <i class="bi bi-box-arrow-in-right"></i> Ingresar
+        </button>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('recover') }}"
+           style="font-size: .82rem; color: var(--fk-blue); text-decoration: none;">
+          ¿Olvidaste tu contraseña?
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
