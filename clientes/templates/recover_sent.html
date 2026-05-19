@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Instrucciones enviadas — Fort Knox Joyas{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center"
+     style="background: linear-gradient(135deg, #0d1b2a, #1b4f8a); margin-top: -1px;">
+  <div style="width: 100%; max-width: 520px; padding: 1rem;">
+
+    <div class="card p-4 p-md-5">
+      <div class="text-center mb-4">
+        <i class="bi bi-envelope-check" style="font-size: 2.5rem; color: var(--fk-blue);"></i>
+        <h5 class="mt-3 fw-bold" style="color: var(--fk-dark);">Email enviado</h5>
+        <p class="text-muted mb-0" style="font-size: .9rem;">
+          Te enviamos las instrucciones de recuperación a<br />
+          <strong>{{ email }}</strong>
+        </p>
+      </div>
+
+      <!-- A02: debug_token expuesto en la respuesta HTTP -->
+      <!-- TODO: remover este bloque antes del deploy a produccion -->
+      <div style="background: #1e293b; border-radius: .4rem; padding: 1rem;">
+        <div style="color: #94a3b8; font-size: .72rem; font-family: monospace; margin-bottom: .4rem;">
+          [DEBUG] recovery_token:
+        </div>
+        <div style="color: #4ade80; font-size: .75rem; font-family: monospace; word-break: break-all; line-height: 1.5;">
+          {{ debug_token }}
+        </div>
+        <div style="color: #334155; font-size: .65rem; font-family: monospace; margin-top: .5rem;">
+          <!-- remove before production deploy -->
+        </div>
+      </div>
+
+      <div class="mt-4 text-center">
+        <a href="{{ url_for('login') }}"
+           style="font-size: .85rem; color: var(--fk-blue); text-decoration: none;">
+          ← Volver al login
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

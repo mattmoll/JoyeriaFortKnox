@@ -48,14 +48,14 @@ c.executemany(
     users
 )
 
-# IDs largos para que no sean trivialmente enumerables.
-# El envio de la victima (carlos_gomez, user_id=1) es 1000001234.
-# El atacante (user_id=4) recibio el link de su propio envio: 1000004728.
+# IDs de 7 digitos para que no sean trivialmente enumerables por fuerza bruta.
+# El envio de la victima (carlos_gomez, user_id=1) es 3847291.
+# El atacante (user_id=4) recibio el link de su propio envio: 4829163.
 shipments = [
-    (19384, 1, 'ORD-2026-1001', 'En camino',  'Av. Corrientes 1234, CABA',   '2026-05-28'),
-    (72810, 2, 'ORD-2026-1002', 'Entregado',  'Av. Belgrano 456, CABA',      '2026-05-10'),
-    (35627, 3, 'ORD-2026-1003', 'Procesando', 'Calle Florida 789, CABA',     '2026-06-05'),
-    (48291, 4, 'ORD-2026-1004', 'En camino',  'Rivadavia 2100, CABA',        '2026-05-30'),
+    (3847291, 1, 'ORD-2026-1001', 'En camino',  'Av. Corrientes 1234, CABA',   '2026-05-28'),
+    (7281053, 2, 'ORD-2026-1002', 'Entregado',  'Av. Belgrano 456, CABA',      '2026-05-10'),
+    (3562748, 3, 'ORD-2026-1003', 'Procesando', 'Calle Florida 789, CABA',     '2026-06-05'),
+    (4829163, 4, 'ORD-2026-1004', 'En camino',  'Rivadavia 2100, CABA',        '2026-05-30'),
 ]
 c.executemany(
     '''INSERT INTO shipments
@@ -69,7 +69,7 @@ conn.close()
 print("Base de datos del portal de tracking inicializada correctamente.")
 print()
 print("Usuarios (sin password - este portal no tiene login propio):")
-print("  carlos_gomez  user_id=1, shipment=19384   (VICTIMA)")
-print("  ana_martinez  user_id=2, shipment=72810")
-print("  lucia_perez   user_id=3, shipment=35627")
-print("  attacker      user_id=4, shipment=48291   (ATACANTE)")
+print("  carlos_gomez  user_id=1, shipment=3847291   (VICTIMA)")
+print("  ana_martinez  user_id=2, shipment=7281053")
+print("  lucia_perez   user_id=3, shipment=3562748")
+print("  attacker      user_id=4, shipment=4829163   (ATACANTE)")
