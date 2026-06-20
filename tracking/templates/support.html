@@ -23,7 +23,7 @@
           type="text"
           name="user_id"
           class="form-control border-start-0 ps-0"
-          placeholder="ID de cliente (ej: 1)"
+          placeholder="ID de cliente (ej: 256108)"
           value="{{ user_id }}"
           autofocus
         />
@@ -65,7 +65,6 @@
               <th style="font-size: .82rem; color: #6b7280; font-weight: 600; padding: .85rem 1rem;">ID</th>
               <th style="font-size: .82rem; color: #6b7280; font-weight: 600;">Nombre</th>
               <th style="font-size: .82rem; color: #6b7280; font-weight: 600;">Apellido</th>
-              <th style="font-size: .82rem; color: #6b7280; font-weight: 600;">Email</th>
             </tr>
           </thead>
           <tbody>
@@ -74,7 +73,6 @@
               <td class="ps-3 fw-semibold" style="font-size: .9rem; color: var(--fk-blue);">{{ row[0] }}</td>
               <td style="font-size: .9rem;">{{ row[1] }}</td>
               <td style="font-size: .9rem;">{{ row[2] }}</td>
-              <td style="font-size: .9rem; color: #374151;">{{ row[3] }}</td>
             </tr>
             {% endfor %}
           </tbody>

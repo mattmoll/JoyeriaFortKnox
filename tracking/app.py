@@ -55,7 +55,7 @@ def login():
 def dev_login():
     if not app.debug:
         abort(404)
-    session['user_id'] = 4
+    session['user_id'] = 256108
     session['username'] = 'attacker'
     return '''
         <div style="font-family:sans-serif; max-width:420px; margin:80px auto; text-align:center;">
@@ -153,7 +153,7 @@ def tracking():
 # Busqueda interna de soporte por user_id
 # VULNERABILIDAD A05: el parametro user_id se concatena directamente en la query.
 # Payload:
-#   1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
+#   204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
 # Efecto: aparece una segunda fila con el username en la columna "Nombre".
 # ---------------------------------------------------------------------------
 
@@ -170,7 +170,7 @@ def support_search():
         try:
             # BUG A05: concatenacion directa de string — sin consultas parametrizadas.
             query = (
-                f"SELECT u.id, u.first_name, u.last_name, u.email "
+                f"SELECT u.id, u.first_name, u.last_name "
                 f"FROM users u WHERE u.id = {user_id}"
             )
             results = conn.execute(query).fetchall()
