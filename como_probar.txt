@@ -68,13 +68,13 @@ PASO 3 — SQL Injection: extraer el username  [Vulnerabilidad A05]
     http://localhost:5001/support/search?user_id=204815
   Devuelve: 204815, Carlos, Gomez  (sin email ni username)
 
-  Ahora inyectar en el parametro user_id:
-    http://localhost:5001/support/search?user_id=204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
-  Resultado esperado: aparece una segunda fila con "carlos_gomez" en la columna Nombre.
+  Ahora inyectar en el mismo campo de busqueda:
+    204815 UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
+  Resultado esperado: aparece una segunda fila donde la columna "Orden" muestra "carlos_gomez".
 
   Dato obtenido: username = carlos_gomez
 
-  Por que funciona: el backend concatena el parametro directamente en la query SQL
+  Por que funciona: el backend concatena el parametro email directamente en la query SQL
   sin usar consultas parametrizadas, permitiendo inyectar un UNION SELECT.
 
 
@@ -83,12 +83,16 @@ PASO 4 — Security Misconfiguration: obtener el token de recuperacion  [Vulnera
     http://localhost:5000/account/recover
   Ingresar:
     Usuario: carlos_gomez
-  Resultado esperado: pagina con bloque negro que muestra:
-    [DEBUG] recovery_token: eyJ...
+  La pagina solo dice "Te enviamos las instrucciones a carlos.gomez@gmail.com".
 
-  Copiar ese token.
+  Abrir DevTools (F12) -> Network -> hacer clic en la request POST a /account/recover
+  -> pestaña Headers -> Response Headers.
+  Resultado esperado: aparece el header:
+    X-Debug-Token: eyJ...
 
-  Por que funciona: el desarrollador dejo un campo de debug en la respuesta HTTP.
+  Copiar el valor de ese header.
+
+  Por que funciona: el desarrollador dejo el token en un response header de debug.
   En produccion ese token solo deberia enviarse por email al dueno de la cuenta.
 
 

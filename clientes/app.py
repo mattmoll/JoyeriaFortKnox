@@ -124,8 +124,12 @@ def recover():
         json.dumps(payload).encode()
     ).decode().rstrip('=')
 
-    # A02: debug_token incluido en la respuesta — TODO: remover antes de deploy a produccion
-    return render_template('recover_sent.html', email=user['email'], debug_token=token)
+    # A02: token incluido en header de respuesta — TODO: remover antes de deploy a produccion
+    response = render_template('recover_sent.html', email=user['email'])
+    from flask import make_response
+    resp = make_response(response)
+    resp.headers['X-Debug-Token'] = token
+    return resp
 
 
 # ---------------------------------------------------------------------------

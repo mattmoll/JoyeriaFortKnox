@@ -16,20 +16,6 @@
         </p>
       </div>
 
-      <!-- A02: debug_token expuesto en la respuesta HTTP -->
-      <!-- TODO: remover este bloque antes del deploy a produccion -->
-      <div style="background: #1e293b; border-radius: .4rem; padding: 1rem;">
-        <div style="color: #94a3b8; font-size: .72rem; font-family: monospace; margin-bottom: .4rem;">
-          [DEBUG] recovery_token:
-        </div>
-        <div style="color: #4ade80; font-size: .75rem; font-family: monospace; word-break: break-all; line-height: 1.5;">
-          {{ debug_token }}
-        </div>
-        <div style="color: #334155; font-size: .65rem; font-family: monospace; margin-top: .5rem;">
-          <!-- remove before production deploy -->
-        </div>
-      </div>
-
       <div class="mt-4 text-center">
         <a href="{{ url_for('login') }}"
            style="font-size: .85rem; color: var(--fk-blue); text-decoration: none;">

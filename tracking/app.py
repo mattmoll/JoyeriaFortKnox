@@ -82,9 +82,9 @@ def dev_logout():
 # ---------------------------------------------------------------------------
 # Landing + busqueda por email
 # VULNERABILIDAD A05: el parametro email se concatena directamente en la query.
-# Payload:
-#   ' UNION SELECT id, username, first_name, last_name, email FROM users WHERE email='<email>'--
-# Efecto: la grilla muestra datos de usuario en las columnas de envio.
+# Payload (ingresar en el campo de busqueda):
+#   carlos.gomez@gmail.com' UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
+# Efecto: aparece una segunda fila donde el username queda en la columna "Orden".
 # ---------------------------------------------------------------------------
 
 @app.route('/')
@@ -148,39 +148,6 @@ def tracking():
     return render_template('tracking.html', shipment=shipment,
                            error=error, shipment_id=shipment_id)
 
-
-# ---------------------------------------------------------------------------
-# Busqueda interna de soporte por user_id
-# VULNERABILIDAD A05: el parametro user_id se concatena directamente en la query.
-# Payload:
-#   204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
-# Efecto: aparece una segunda fila con el username en la columna "Nombre".
-# ---------------------------------------------------------------------------
-
-@app.route('/support/search')
-@sso_required
-def support_search():
-    user_id = request.args.get('user_id', '').strip()
-    results = []
-    error = None
-    searched = bool(user_id)
-
-    if user_id:
-        conn = get_db()
-        try:
-            # BUG A05: concatenacion directa de string — sin consultas parametrizadas.
-            query = (
-                f"SELECT u.id, u.first_name, u.last_name "
-                f"FROM users u WHERE u.id = {user_id}"
-            )
-            results = conn.execute(query).fetchall()
-        except Exception as e:
-            error = str(e)
-        finally:
-            conn.close()
-
-    return render_template('support.html', results=results,
-                           user_id=user_id, error=error, searched=searched)
 
 
 if __name__ == '__main__':
