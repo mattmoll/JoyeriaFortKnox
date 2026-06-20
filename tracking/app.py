@@ -55,7 +55,7 @@ def login():
 def dev_login():
     if not app.debug:
         abort(404)
-    session['user_id'] = 4
+    session['user_id'] = 256108
     session['username'] = 'attacker'
     return '''
         <div style="font-family:sans-serif; max-width:420px; margin:80px auto; text-align:center;">

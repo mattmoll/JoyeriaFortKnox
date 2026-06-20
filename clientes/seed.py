@@ -37,23 +37,24 @@ CREATE TABLE orders (
 ''')
 
 # Los usernames coinciden con los del portal de tracking (campo compartido via SSO).
+# IDs de cliente ofuscados (no secuenciales) — iguales en ambos portales.
 # Passwords en texto claro — este es un lab de seguridad, no produccion.
 users = [
-    ('carlos_gomez', 'FK2026!', 'carlos.gomez@gmail.com',   'Carlos', 'Gomez'),
-    ('ana_martinez', 'FK2026!', 'ana.martinez@hotmail.com', 'Ana',    'Martinez'),
-    ('lucia_perez',  'FK2026!', 'lucia.perez@yahoo.com',    'Lucia',  'Perez'),
-    ('attacker',     'FK2026!', 'attacker@mailinator.com',  'Juan',   'Atacante'),
+    (204815, 'carlos_gomez', 'FK2026!', 'carlos.gomez@gmail.com',   'Carlos', 'Gomez'),
+    (119273, 'ana_martinez', 'FK2026!', 'ana.martinez@hotmail.com', 'Ana',    'Martinez'),
+    (387640, 'lucia_perez',  'FK2026!', 'lucia.perez@yahoo.com',    'Lucia',  'Perez'),
+    (256108, 'attacker',     'FK2026!', 'attacker@mailinator.com',  'Juan',   'Atacante'),
 ]
 c.executemany(
-    'INSERT INTO users (username, password, email, first_name, last_name) VALUES (?,?,?,?,?)',
+    'INSERT INTO users (id, username, password, email, first_name, last_name) VALUES (?,?,?,?,?,?)',
     users
 )
 
 orders = [
-    (1, 'ORD-2026-1001', 'Anillo de Diamantes 0.5ct', 45000, 'Enviado',         '2026-05-12'),
-    (2, 'ORD-2026-1002', 'Collar de Oro 18k',          28000, 'Entregado',       '2026-05-01'),
-    (3, 'ORD-2026-1003', 'Pulsera de Plata 925',       15000, 'En preparacion',  '2026-05-18'),
-    (4, 'ORD-2026-1004', 'Cadena de Plata 50cm',       12000, 'Enviado',         '2026-05-15'),
+    (204815, 'ORD-2026-1001', 'Anillo de Diamantes 0.5ct', 45000, 'Enviado',         '2026-05-12'),
+    (119273, 'ORD-2026-1002', 'Collar de Oro 18k',          28000, 'Entregado',       '2026-05-01'),
+    (387640, 'ORD-2026-1003', 'Pulsera de Plata 925',       15000, 'En preparacion',  '2026-05-18'),
+    (256108, 'ORD-2026-1004', 'Cadena de Plata 50cm',       12000, 'Enviado',         '2026-05-15'),
 ]
 c.executemany(
     '''INSERT INTO orders (user_id, order_number, product_name, amount, status, created_at)

