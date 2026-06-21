@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Mi perfil — Fort Knox Joyas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="d-flex align-items-center gap-3">
+      <i class="bi bi-person-vcard" style="font-size: 2rem; opacity: .85;"></i>
+      <div>
+        <h2 class="mb-0 fw-bold">Mi perfil</h2>
+        <p class="mb-0 opacity-75" style="font-size: .95rem;">Datos de la cuenta, pagos y envíos</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="max-width: 960px;">
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for msg in messages %}
+      <div class="alert alert-success d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle-fill"></i> <span>{{ msg }}</span>
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="row g-3">
+
+    <!-- Datos personales -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem; letter-spacing:.8px;">
+            <i class="bi bi-person"></i> Datos personales
+          </h6>
+          <dl style="display:grid; grid-template-columns:auto 1fr; gap:.5rem 1rem; margin:0;">
+            <dt class="text-muted fw-normal" style="font-size:.9rem;">Nombre</dt>
+            <dd class="mb-0" style="font-size:.9rem;">{{ user.first_name }} {{ user.last_name }}</dd>
+            <dt class="text-muted fw-normal" style="font-size:.9rem;">Email</dt>
+            <dd class="mb-0" style="font-size:.9rem;">{{ user.email }}</dd>
+            <dt class="text-muted fw-normal" style="font-size:.9rem;">Teléfono</dt>
+            <dd class="mb-0" style="font-size:.9rem;">{{ user.phone }}</dd>
+            <dt class="text-muted fw-normal" style="font-size:.9rem;">ID de cliente</dt>
+            <dd class="mb-0" style="font-size:.9rem;"><code>{{ user.id }}</code></dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <!-- Método de pago guardado -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem; letter-spacing:.8px;">
+            <i class="bi bi-credit-card-2-front"></i> Método de pago guardado
+          </h6>
+          <div style="background: linear-gradient(135deg, #0d1b2a, #1b4f8a); color:#fff;
+                      border-radius:.6rem; padding:1.1rem 1.2rem;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span style="font-size:.72rem; letter-spacing:1px; opacity:.8;">FORT KNOX CARD</span>
+              <span class="fw-bold" style="letter-spacing:1px;">{{ user.card_brand }}</span>
+            </div>
+            <div style="font-size:1.15rem; letter-spacing:2px; font-family:monospace;">
+              ···· ···· ···· {{ user.card_last4 }}
+            </div>
+            <div class="d-flex justify-content-between mt-3" style="font-size:.74rem; opacity:.85;">
+              <span>{{ user.first_name }} {{ user.last_name }}</span>
+              <span>Vence 08/27</span>
+            </div>
+          </div>
+          <p class="text-muted mt-2 mb-0" style="font-size:.78rem;">
+            Se usa por defecto en tus compras.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dirección de envío (editable) -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem; letter-spacing:.8px;">
+            <i class="bi bi-geo-alt"></i> Dirección de envío
+          </h6>
+          <form method="POST" action="{{ url_for('update_address') }}" class="row g-2 align-items-end">
+            <div class="col-md-9">
+              <input type="text" name="address" class="form-control" value="{{ user.address }}" />
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn w-100 text-white fw-semibold"
+                      style="background-color: var(--fk-blue);">
+                <i class="bi bi-save"></i> Guardar
+              </button>
+            </div>
+          </form>
+          <p class="text-muted mt-2 mb-0" style="font-size:.78rem;">
+            Todos los envíos futuros se entregan en esta dirección.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compra express -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.75rem; letter-spacing:.8px;">
+            <i class="bi bi-bag-plus"></i> Compra express — un clic con tu tarjeta guardada
+          </h6>
+          <div class="row g-3">
+            {% for item in catalog %}
+            <div class="col-md-4">
+              <div class="border rounded p-3 h-100 d-flex flex-column">
+                <div class="mb-2"><i class="bi bi-gem" style="font-size:1.5rem; color:var(--fk-accent);"></i></div>
+                <div class="fw-semibold" style="font-size:.92rem;">{{ item.name }}</div>
+                <div class="text-muted mb-3" style="font-size:.9rem;">
+                  $ {{ "{:,.0f}".format(item.amount).replace(",", ".") }}
+                </div>
+                <form method="POST" action="{{ url_for('purchase') }}" class="mt-auto">
+                  <input type="hidden" name="item" value="{{ loop.index0 }}" />
+                  <button type="submit" class="btn btn-sm w-100 fw-semibold"
+                          style="background-color: var(--fk-accent); color:#000;">
+                    Comprar ahora
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="text-center mt-4">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Volver a mi cuenta
+    </a>
+  </div>
+
+</div>
+{% endblock %}

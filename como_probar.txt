@@ -63,16 +63,18 @@ PASO 2 — IDOR: ver el envio de la victima  [Vulnerabilidad A01]
   que el shipment_id pertenezca al usuario autenticado.
 
 
-PASO 3 — SQL Injection: extraer el username  [Vulnerabilidad A05]
-  Busqueda normal con el ID de cliente obtenido:
-    http://localhost:5001/support/search?user_id=204815
-  Devuelve: 204815, Carlos, Gomez  (sin email ni username)
+PASO 3 — SQL Injection: extraer el email  [Vulnerabilidad A05]
+  El buscador de envios por email (pagina principal) es vulnerable. El atacante todavia
+  NO tiene el email: solo el ID de cliente del Paso 2. Lo inyecta para extraerlo.
 
-  Ahora inyectar en el mismo campo de busqueda:
-    204815 UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
-  Resultado esperado: aparece una segunda fila donde la columna "Orden" muestra "carlos_gomez".
+  Navegar a:
+    http://localhost:5001/
+  Ingresar en el campo de busqueda:
+    ' UNION SELECT email,'-','-','-','-' FROM users WHERE id=204815--
+  Resultado esperado: aparece una fila donde la columna "Nro. de envio" muestra
+  carlos.gomez@gmail.com (datos en columnas que no corresponden = UI rota por la inyeccion).
 
-  Dato obtenido: username = carlos_gomez
+  Dato obtenido: email = carlos.gomez@gmail.com
 
   Por que funciona: el backend concatena el parametro email directamente en la query SQL
   sin usar consultas parametrizadas, permitiendo inyectar un UNION SELECT.
@@ -82,7 +84,7 @@ PASO 4 — Security Misconfiguration: obtener el token de recuperacion  [Vulnera
   Navegar a:
     http://localhost:5000/account/recover
   Ingresar:
-    Usuario: carlos_gomez
+    Email: carlos.gomez@gmail.com
   La pagina solo dice "Te enviamos las instrucciones a carlos.gomez@gmail.com".
 
   Abrir DevTools (F12) -> Network -> hacer clic en la request POST a /account/recover
@@ -124,7 +126,7 @@ RESULTADO FINAL
 El atacante tiene acceso total a la cuenta de carlos_gomez.
 La cadena completa uso 4 vulnerabilidades encadenadas:
   A01 (IDOR)     -> ID de cliente de la victima
-  A05 (SQLi)     -> username de la victima
+  A05 (SQLi)     -> email de la victima
   A02 (Misconfig)-> token de recuperacion en la respuesta
   A08 (Tampering)-> acceso a la cuenta sin conocer la contrasena
 

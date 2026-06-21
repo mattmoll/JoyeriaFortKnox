@@ -80,11 +80,12 @@ def dev_logout():
 
 
 # ---------------------------------------------------------------------------
-# Landing + busqueda por email
-# VULNERABILIDAD A05: el parametro email se concatena directamente en la query.
-# Payload (ingresar en el campo de busqueda):
-#   carlos.gomez@gmail.com' UNION SELECT id,username,first_name,last_name,email FROM users WHERE email='carlos.gomez@gmail.com'--
-# Efecto: aparece una segunda fila donde el username queda en la columna "Orden".
+# Landing + busqueda de envios por email (busqueda publica, realista).
+# VULNERABILIDAD A05: el parametro email se concatena directo en la query SQL.
+# Del Paso 1 (IDOR) el atacante solo tiene el ID de cliente, no el email.
+# Inyecta para extraer el EMAIL de la victima usando ese ID:
+#   ' UNION SELECT email,'-','-','-','-' FROM users WHERE id=204815--
+# Efecto: el email de la victima aparece en la columna "Nro. de envio".
 # ---------------------------------------------------------------------------
 
 @app.route('/')
@@ -143,7 +144,12 @@ def tracking():
         ).fetchone()
         conn.close()
         if not shipment:
+            # Envio inexistente -> 404. Un envio existente (de cualquier dueño)
+            # devuelve 200 con los datos. Ese contraste 200 vs 404 es el que
+            # delata el IDOR durante la enumeracion por fuerza bruta.
             error = f'No se encontró ningún envío con el ID {shipment_id}.'
+            return render_template('tracking.html', shipment=None,
+                                   error=error, shipment_id=shipment_id), 404
 
     return render_template('tracking.html', shipment=shipment,
                            error=error, shipment_id=shipment_id)

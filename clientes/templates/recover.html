@@ -14,7 +14,7 @@
         <div class="text-muted" style="font-size: .78rem; letter-spacing: 2px;">RECUPERAR CUENTA</div>
         <hr class="my-3" />
         <p class="text-muted mb-0" style="font-size: .88rem;">
-          Ingresá tu nombre de usuario y te enviaremos las instrucciones para recuperar tu cuenta.
+          Ingresá tu email y te enviaremos las instrucciones para recuperar tu cuenta.
         </p>
       </div>
 
@@ -29,10 +29,10 @@
       <form method="POST" action="{{ url_for('recover') }}">
         <div class="mb-4">
           <label class="form-label text-muted" style="font-size: .82rem; font-weight: 600;">
-            USUARIO
+            EMAIL
           </label>
-          <input type="text" name="username" class="form-control"
-                 placeholder="tu_usuario" autofocus required />
+          <input type="email" name="email" class="form-control"
+                 placeholder="tu@email.com" autofocus required />
         </div>
         <button type="submit" class="btn w-100 fw-semibold text-white"
                 style="background-color: var(--fk-blue);">

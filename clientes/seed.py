@@ -21,7 +21,11 @@ CREATE TABLE users (
     password    TEXT NOT NULL,
     email       TEXT NOT NULL,
     first_name  TEXT NOT NULL,
-    last_name   TEXT NOT NULL
+    last_name   TEXT NOT NULL,
+    phone       TEXT,
+    address     TEXT,
+    card_brand  TEXT,
+    card_last4  TEXT
 );
 
 CREATE TABLE orders (
@@ -40,13 +44,19 @@ CREATE TABLE orders (
 # IDs de cliente ofuscados (no secuenciales) — iguales en ambos portales.
 # Passwords en texto claro — este es un lab de seguridad, no produccion.
 users = [
-    (204815, 'carlos_gomez', 'FK2026!', 'carlos.gomez@gmail.com',   'Carlos', 'Gomez'),
-    (119273, 'ana_martinez', 'FK2026!', 'ana.martinez@hotmail.com', 'Ana',    'Martinez'),
-    (387640, 'lucia_perez',  'FK2026!', 'lucia.perez@yahoo.com',    'Lucia',  'Perez'),
-    (256108, 'attacker',     'FK2026!', 'attacker@mailinator.com',  'Juan',   'Atacante'),
+    (204815, 'carlos_gomez', 'FK2026!', 'carlos.gomez@gmail.com',   'Carlos', 'Gomez',
+     '+54 9 11 4821-7766', 'Av. Corrientes 1234, Piso 8 "B", CABA (C1043)', 'Visa', '4821'),
+    (119273, 'ana_martinez', 'FK2026!', 'ana.martinez@hotmail.com', 'Ana',    'Martinez',
+     '+54 9 11 3372-1180', 'Av. Belgrano 456, CABA', 'Mastercard', '7732'),
+    (387640, 'lucia_perez',  'FK2026!', 'lucia.perez@yahoo.com',    'Lucia',  'Perez',
+     '+54 9 11 5567-9043', 'Calle Florida 789, CABA', 'Visa', '2290'),
+    (256108, 'attacker',     'FK2026!', 'attacker@mailinator.com',  'Juan',   'Atacante',
+     '+54 9 11 2211-0090', 'Rivadavia 2100, CABA', 'Visa', '0001'),
 ]
 c.executemany(
-    'INSERT INTO users (id, username, password, email, first_name, last_name) VALUES (?,?,?,?,?,?)',
+    '''INSERT INTO users (id, username, password, email, first_name, last_name,
+                          phone, address, card_brand, card_last4)
+       VALUES (?,?,?,?,?,?,?,?,?,?)''',
     users
 )
 

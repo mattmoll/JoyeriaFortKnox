@@ -1,9 +1,10 @@
-from flask import Flask, request, render_template, redirect, url_for, session
+from flask import Flask, request, render_template, redirect, url_for, session, flash
 from functools import wraps
 import sqlite3
 import os
 import json
 import base64
+import random
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -94,6 +95,71 @@ def dashboard():
 
 
 # ---------------------------------------------------------------------------
+# Perfil del cliente — datos sensibles + direccion de envio + compra express.
+# Demuestra el IMPACTO de la toma de cuenta: con la sesion de la victima el
+# atacante ve su tarjeta guardada, cambia la direccion de envio y compra a su
+# nombre. Todo mockeado, pero ilustra el provecho real del ataque.
+# ---------------------------------------------------------------------------
+
+# Catalogo mock para la compra de un clic con la tarjeta guardada.
+CATALOG = [
+    {'name': 'Reloj Oro Rosa 18k',       'amount': 89000},
+    {'name': 'Aros de Brillantes 1ct',   'amount': 124000},
+    {'name': 'Anillo Esmeralda Premium', 'amount': 156000},
+]
+
+
+@app.route('/profile')
+@login_required
+def profile():
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    return render_template('profile.html', user=user, catalog=CATALOG)
+
+
+@app.route('/profile/address', methods=['POST'])
+@login_required
+def update_address():
+    new_address = request.form.get('address', '').strip()
+    if new_address:
+        conn = get_db()
+        conn.execute('UPDATE users SET address = ? WHERE id = ?',
+                     (new_address, session['user_id']))
+        conn.commit()
+        conn.close()
+        flash(f'Dirección de envío actualizada a: {new_address}')
+    return redirect(url_for('profile'))
+
+
+@app.route('/profile/purchase', methods=['POST'])
+@login_required
+def purchase():
+    try:
+        idx = int(request.form.get('item', -1))
+    except ValueError:
+        idx = -1
+
+    if 0 <= idx < len(CATALOG):
+        item = CATALOG[idx]
+        conn = get_db()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        order_number = 'ORD-2026-' + str(random.randint(2000, 9999))
+        conn.execute(
+            '''INSERT INTO orders (user_id, order_number, product_name, amount, status, created_at)
+               VALUES (?,?,?,?,?,?)''',
+            (session['user_id'], order_number, item['name'], item['amount'],
+             'En preparacion', datetime.utcnow().strftime('%Y-%m-%d'))
+        )
+        conn.commit()
+        conn.close()
+        monto = '{:,.0f}'.format(item['amount']).replace(',', '.')
+        flash(f"Compra confirmada: {item['name']} — $ {monto} cargado a "
+              f"{user['card_brand']} ····{user['card_last4']}, envío a {user['address']}")
+    return redirect(url_for('profile'))
+
+
+# ---------------------------------------------------------------------------
 # Recuperacion de cuenta
 # VULNERABILIDAD A02: Security Misconfiguration
 # El campo debug_token devuelve el token de recuperacion en la respuesta HTTP.
@@ -105,14 +171,14 @@ def recover():
     if request.method == 'GET':
         return render_template('recover.html')
 
-    username = request.form.get('username', '').strip()
+    email = request.form.get('email', '').strip()
 
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
     conn.close()
 
     if not user:
-        return render_template('recover.html', error='No existe una cuenta con ese usuario.')
+        return render_template('recover.html', error='No existe una cuenta con ese email.')
 
     payload = {
         'user': user['username'],
